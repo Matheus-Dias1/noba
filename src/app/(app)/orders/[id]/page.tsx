@@ -88,7 +88,7 @@ export default function OrderEditorPage() {
       submitting={saveMutation.isPending}
       onSubmit={async (body) => {
         try {
-          await saveMutation.mutateAsync({ id, data: body });
+          await saveMutation.mutateAsync({ id: isNew ? undefined : id, data: body });
           toast.success(isNew ? "Pedido criado" : "Pedido atualizado");
           router.push("/orders");
           router.refresh();
