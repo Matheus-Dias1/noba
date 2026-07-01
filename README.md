@@ -54,6 +54,22 @@ pnpm tauri:dev    # run the desktop app against the dev server
 pnpm tauri:build  # build the desktop app (loads the deployed URL)
 ```
 
+## Deployment (Vercel)
+
+The app deploys to Vercel from the `main` branch (auto-deploy on push). Required
+production environment variables (Settings → Environment Variables, all envs):
+
+| Name | Value |
+| --- | --- |
+| `MONGO_USER` | MongoDB user with read/write on the target DB |
+| `MONGO_PASS` | that user's password |
+| `MONGO_DB_NAME` | `oba` for production (use `oba_dev` for a preview/staging deploy) |
+| `TOKEN_SECRET` | a 32-byte hex secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+
+Vercel sets `NODE_ENV=production`, which **bypasses** the `db.ts` guard that
+blocks the production DB outside production — so `MONGO_DB_NAME=oba` works there.
+Locally, keep `MONGO_DB_NAME=oba_dev`.
+
 ## Auth
 
 Sessions are JWT in an **httpOnly cookie** (`oba_session`), 24h expiry. Login is
