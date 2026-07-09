@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { batches } from "@/db/schema/batches";
-import { orders } from "@/db/schema/orders";
 import { decodeCursor, buildPage } from "@/db/pagination";
 import { requireSession } from "@/lib/auth";
 

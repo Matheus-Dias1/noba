@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { batches } from "@/db/schema/batches";
 import { orders } from "@/db/schema/orders";
@@ -63,7 +63,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
             .from(orderItems)
             .innerJoin(products, eq(products.id, orderItems.productId))
             .leftJoin(productConversions, eq(productConversions.productId, products.id))
-            .where(sql`${orderItems.orderId} = ANY(${orderIds})`)
+            .where(inArray(orderItems.orderId, orderIds))
         : [];
 
     const itemsByOrder = new Map<number, typeof itemRows>();

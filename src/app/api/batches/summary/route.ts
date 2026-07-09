@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, desc, eq, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { batches } from "@/db/schema/batches";
 import { orders } from "@/db/schema/orders";
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
         deliverAt: orders.deliverAt,
       })
       .from(orders)
-      .where(sql`${orders.batchId} = ANY(${batchIds})`)
+      .where(inArray(orders.batchId, batchIds))
       .orderBy(desc(orders.id));
 
     // items for these orders (with product + conversions)
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
             .from(orderItems)
             .innerJoin(products, eq(products.id, orderItems.productId))
             .leftJoin(productConversions, eq(productConversions.productId, products.id))
-            .where(sql`${orderItems.orderId} = ANY(${orderIds})`)
+            .where(inArray(orderItems.orderId, orderIds))
         : [];
 
     // shape: batch → orders[] → items[] with product + conversions[]

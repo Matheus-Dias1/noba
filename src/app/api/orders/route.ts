@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, desc, eq, ilike, lt, not, or, sql, gte, lte, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, lt, not, or, sql, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, orderItems } from "@/db/schema/orders";
 import { batches } from "@/db/schema/batches";
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
             })
             .from(orderItems)
             .innerJoin(products, eq(products.id, orderItems.productId))
-            .where(sql`${orderItems.orderId} = ANY(${orderIds})`)
+            .where(inArray(orderItems.orderId, orderIds))
         : [];
 
     // group items by order
