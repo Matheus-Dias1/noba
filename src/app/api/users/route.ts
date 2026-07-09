@@ -1,16 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { connectDB } from "@/lib/db";
+import { db } from "@/db/client";
+import { users } from "@/db/schema/users";
 import { encryptPassword } from "@/lib/passwords";
-import { User } from "@/models/user";
 import type { SessionError } from "@/types";
 
 /**
  * POST /api/users — create a new user.
  *
- * Ported from the original `resolvers/users.ts`. New users are created as
- * non-admin (so they cannot log in until an admin flips the flag — see
- * PAGES_EXTRACTION.md §10 #1). The original returned the raw Mongo duplicate-key
- * error as `USER_ALREADY_EXISTS`; we keep that contract.
+ * Ported from Mongoose to Drizzle. New users are created as non-admin (so they
+ * cannot log in until an admin flips the flag). Duplicate-username is detected
+ * via the unique constraint and surfaced as USER_ALREADY_EXISTS.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -24,8 +23,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
     }
 
-    await connectDB();
-
     let hash: string;
     try {
       hash = await encryptPassword(password);
@@ -34,18 +31,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
     }
 
-    const newUser = new User({
-      username: username.trim().toLowerCase(),
-      name,
-      password: hash,
-    });
-
     try {
-      const saved = await newUser.save();
-      return NextResponse.json({ id: String(saved._id) }, { status: 201 });
+      const [created] = await db
+        .insert(users)
+        .values({
+          username: username.trim().toLowerCase(),
+          name,
+          passwordHash: hash,
+        })
+        .returning({ id: users.id });
+      return NextResponse.json({ id: String(created.id) }, { status: 201 });
     } catch (err: unknown) {
-      const error = err as { name?: string; code?: number };
-      if (error.name === "MongoServerError" && error.code === 11000) {
+      // Postgres unique-violation: SQLSTATE 23505
+      const e = err as { code?: string };
+      if (e.code === "23505") {
         return NextResponse.json(
           { error: "USER_ALREADY_EXISTS" satisfies SessionError },
           { status: 422 },

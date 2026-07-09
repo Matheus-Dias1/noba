@@ -1,8 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
-import mongoose from "mongoose";
-import { connectDB } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { orders, orderItems } from "@/db/schema/orders";
+import { batches } from "@/db/schema/batches";
+import { products } from "@/db/schema/products";
+import { productConversions } from "@/db/schema/products";
+import { clientUnits } from "@/db/schema/client-units";
+import { clients } from "@/db/schema/clients";
 import { requireSession } from "@/lib/auth";
-import { Order } from "@/models/order";
+import { forceDateDay } from "@/lib/format";
 
 /** GET /api/orders/:id — single order, fully populated. */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,30 +16,109 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!guard.ok) return guard.response;
 
   try {
-    await connectDB();
     const { id } = await params;
-    const order = await Order.findById(id)
-      .populate({ path: "items", populate: { path: "item", model: "Product" } })
-      .populate({ path: "batch", model: "Batch" });
-    return NextResponse.json(order);
+    const numId = Number(id);
+    if (Number.isNaN(numId)) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
+
+    const [orderRow] = await db
+      .select({
+        id: orders.id,
+        clientSnapshot: orders.clientSnapshot,
+        observation: orders.observation,
+        createdAt: orders.createdAt,
+        deliverAt: orders.deliverAt,
+        status: orders.status,
+        archived: orders.archived,
+        batchId: batches.id,
+        batchNumber: batches.number,
+        batchStart: batches.startDate,
+        batchEnd: batches.endDate,
+        clientUnitId: clientUnits.id,
+        clientUnitName: clientUnits.name,
+        clientName: clients.name,
+      })
+      .from(orders)
+      .innerJoin(batches, eq(batches.id, orders.batchId))
+      .leftJoin(clientUnits, eq(clientUnits.id, orders.clientUnitId))
+      .leftJoin(clients, eq(clients.id, clientUnits.clientId))
+      .where(eq(orders.id, numId));
+
+    if (!orderRow) return NextResponse.json(null, { status: 404 });
+
+    // items with product + conversions
+    const itemRows = await db
+      .select({
+        amount: orderItems.amount,
+        unit: orderItems.unit,
+        productId: products.id,
+        productDescription: products.description,
+        productDefaultUnit: products.defaultUnit,
+        convUnit: productConversions.unit,
+        convFactor: productConversions.oneDefaultEquals,
+      })
+      .from(orderItems)
+      .innerJoin(products, eq(products.id, orderItems.productId))
+      .leftJoin(productConversions, eq(productConversions.productId, products.id))
+      .where(eq(orderItems.orderId, numId));
+
+    // collapse conversions into the product
+    const prodMap = new Map<number, { id: number; description: string; defaultMeasurementUnit: string; conversions: { measurementUnit: string; oneDefaultEquals: number }[] }>();
+    const lineOrder: { amount: number; measurementUnit: string; product: number }[] = [];
+    for (const r of itemRows) {
+      if (!prodMap.has(r.productId)) {
+        prodMap.set(r.productId, {
+          id: r.productId,
+          description: r.productDescription,
+          defaultMeasurementUnit: r.productDefaultUnit,
+          conversions: [],
+        });
+        lineOrder.push({ amount: Number(r.amount), measurementUnit: r.unit, product: r.productId });
+      }
+      if (r.convUnit) {
+        prodMap.get(r.productId)!.conversions.push({
+          measurementUnit: r.convUnit,
+          oneDefaultEquals: Number(r.convFactor),
+        });
+      }
+    }
+
+    return NextResponse.json({
+      id: orderRow.id,
+      client: orderRow.clientSnapshot ?? (orderRow.clientName ? `${orderRow.clientName}${orderRow.clientUnitName ? " - " + orderRow.clientUnitName : ""}` : ""),
+      observation: orderRow.observation,
+      createdAt: orderRow.createdAt,
+      deliverAt: orderRow.deliverAt,
+      status: orderRow.status,
+      archived: orderRow.archived,
+      batch: {
+        id: orderRow.batchId,
+        number: orderRow.batchNumber,
+        startDate: orderRow.batchStart,
+        endDate: orderRow.batchEnd,
+      },
+      clientUnitId: orderRow.clientUnitId,
+      items: lineOrder.map((l) => ({
+        amount: l.amount,
+        measurementUnit: l.measurementUnit,
+        item: prodMap.get(l.product)!,
+      })),
+    });
   } catch (err) {
     console.log("UNEXPECTED ERROR (orders/:id GET):", err);
     return NextResponse.json({ error: "UNEXPECTED" }, { status: 422 });
   }
 }
 
-/**
- * PUT /api/orders/:id — partial update (only provided fields are $set).
- * Ported verbatim. Note: changing `batch` does NOT move the order between
- * batches' `orders[]` arrays (carried-over bug, §10 #4).
- */
+/** PUT /api/orders/:id — partial update. */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireSession();
   if (!guard.ok) return guard.response;
 
   try {
-    await connectDB();
     const { id } = await params;
+    const numId = Number(id);
+    if (Number.isNaN(numId)) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
+
     const { client, batch, deliverAt, items } = (await req.json()) as {
       client?: string;
       batch?: string;
@@ -41,20 +126,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       items?: { item: string; amount: number; measurementUnit: string }[];
     };
 
-    const update = {
-      $set: Object.assign(
-        {},
-        client ? { client } : null,
-        batch ? { batch } : null,
-        deliverAt ? { deliverAt } : null,
-        items ? { items } : null,
-      ),
-    };
-    if (Object.keys(update.$set).length > 0) {
-      await Order.updateOne({ _id: new mongoose.Types.ObjectId(id) }, update);
-      return NextResponse.json({ ok: true });
+    if (client) await db.update(orders).set({ clientSnapshot: client }).where(eq(orders.id, numId));
+    if (batch) await db.update(orders).set({ batchId: Number(batch) }).where(eq(orders.id, numId));
+    if (deliverAt)
+      await db.update(orders).set({ deliverAt: forceDateDay(deliverAt) }).where(eq(orders.id, numId));
+
+    if (items) {
+      await db.delete(orderItems).where(eq(orderItems.orderId, numId));
+      if (items.length > 0) {
+        await db.insert(orderItems).values(
+          items.map((it) => ({
+            orderId: numId,
+            productId: Number(it.item),
+            amount: String(it.amount),
+            unit: it.measurementUnit,
+          })),
+        );
+      }
     }
-    return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
+
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.log("UNEXPECTED ERROR (orders/:id PUT):", err);
     return NextResponse.json({ error: "UNEXPECTED" }, { status: 422 });
@@ -67,12 +158,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!guard.ok) return guard.response;
 
   try {
-    await connectDB();
     const { id } = await params;
-    await Order.updateOne(
-      { _id: new mongoose.Types.ObjectId(id) },
-      { $set: { archived: true } },
-    );
+    const numId = Number(id);
+    if (Number.isNaN(numId)) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
+
+    await db.update(orders).set({ archived: true }).where(eq(orders.id, numId));
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.log("UNEXPECTED ERROR (orders/:id DELETE):", err);

@@ -1,60 +1,168 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { connectDB } from "@/lib/db";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
+import { db } from "@/db/client";
+import { batches } from "@/db/schema/batches";
+import { orders } from "@/db/schema/orders";
+import { orderItems } from "@/db/schema/orders";
+import { products } from "@/db/schema/products";
+import { productConversions } from "@/db/schema/products";
+import { decodeCursor, buildPage } from "@/db/pagination";
 import { requireSession } from "@/lib/auth";
-import { Batch } from "@/models/batch";
-import { decodeCursor, buildPage } from "@/lib/pagination";
-import { normalize } from "@/lib/normalize";
-import "@/models/order"; // register Order schema for populate
-import "@/models/product"; // register Product schema for nested populate
 
 const DEFAULT_PAGE_SIZE = 30;
 
 /**
- * GET /api/batches/summary — paginated batches with all orders + nested items
- * + products populated (heavy payload; carried over from the original for the
- * faithful port). Used by the Batches list cards. Newest first.
- *
- * Results are passed through `normalize()` because Mongoose's `toJSON` transform
- * doesn't reach populated refs nested inside subdocument arrays, which would
- * otherwise surface as Mongoose Documents missing a stable `id` and break the
- * client-side grouping (see PAGES_EXTRACTION.md — the pimenta bode sum bug).
+ * GET /api/batches/summary — paginated batches with their orders + items +
+ * products. Unlike the Mongo version (deep populate → huge payload + the
+ * pimenta bode bug), here we do targeted joins and shape the nested structure
+ * in JS. The wire shape matches what the frontend expects.
  */
 export async function GET(req: NextRequest) {
   const guard = await requireSession();
   if (!guard.ok) return guard.response;
 
   try {
-    await connectDB();
     const { afterCursor, search } = Object.fromEntries(req.nextUrl.searchParams);
 
-    const cursorFilters: Record<string, unknown> = afterCursor
-      ? { _id: { $lt: decodeCursor(afterCursor) } }
-      : {};
-
-    const filters: Record<string, unknown> = { ...cursorFilters };
+    const conds = [];
+    if (afterCursor) conds.push(lt(batches.id, decodeCursor(afterCursor)));
     if (search) {
       const n = parseInt(search, 10);
-      if (!Number.isNaN(n)) Object.assign(filters, { number: n });
+      if (!Number.isNaN(n)) conds.push(eq(batches.number, n));
     }
 
-    let items = await Batch.find(filters)
-      .limit(DEFAULT_PAGE_SIZE + 1)
-      .sort({ _id: -1 })
-      .populate({
-        path: "orders",
-        model: "Order",
-        select: "-batch",
-        populate: { path: "items", populate: { path: "item", model: "Product" } },
-      });
+    const batchRows = await db
+      .select({
+        id: batches.id,
+        number: batches.number,
+        startDate: batches.startDate,
+        endDate: batches.endDate,
+      })
+      .from(batches)
+      .where(conds.length ? and(...conds) : undefined)
+      .orderBy(desc(batches.id))
+      .limit(DEFAULT_PAGE_SIZE + 1);
 
-    const hasNextPage = items.length > DEFAULT_PAGE_SIZE;
-    if (hasNextPage) items = items.slice(0, DEFAULT_PAGE_SIZE);
+    const hasNextPage = batchRows.length > DEFAULT_PAGE_SIZE;
+    const trimmed = hasNextPage ? batchRows.slice(0, DEFAULT_PAGE_SIZE) : batchRows;
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(batches);
 
-    const normalized = normalize<{ id: string }[]>(items);
-    const totalCount = await Batch.countDocuments();
-    return NextResponse.json(buildPage(normalized, hasNextPage, totalCount));
+    if (trimmed.length === 0) return NextResponse.json(buildPage([], false, count));
+
+    // orders for these batches
+    const batchIds = trimmed.map((b) => b.id);
+    const orderRows = await db
+      .select({
+        id: orders.id,
+        batchId: orders.batchId,
+        client: orders.clientSnapshot,
+        observation: orders.observation,
+        status: orders.status,
+        createdAt: orders.createdAt,
+        deliverAt: orders.deliverAt,
+      })
+      .from(orders)
+      .where(sql`${orders.batchId} = ANY(${batchIds})`)
+      .orderBy(desc(orders.id));
+
+    // items for these orders (with product + conversions)
+    const orderIds = orderRows.map((o) => o.id);
+    const itemRows =
+      orderIds.length > 0
+        ? await db
+            .select({
+              orderId: orderItems.orderId,
+              amount: orderItems.amount,
+              unit: orderItems.unit,
+              productId: products.id,
+              productDescription: products.description,
+              productDefaultUnit: products.defaultUnit,
+              convUnit: productConversions.unit,
+              convFactor: productConversions.oneDefaultEquals,
+            })
+            .from(orderItems)
+            .innerJoin(products, eq(products.id, orderItems.productId))
+            .leftJoin(productConversions, eq(productConversions.productId, products.id))
+            .where(sql`${orderItems.orderId} = ANY(${orderIds})`)
+        : [];
+
+    // shape: batch → orders[] → items[] with product + conversions[]
+    const itemsByOrder = groupBy(itemRows, (r) => r.orderId);
+    const ordersByBatch = groupBy(orderRows, (r) => r.batchId);
+
+    const nodes = trimmed.map((b) => ({
+      id: b.id,
+      number: b.number,
+      startDate: b.startDate,
+      endDate: b.endDate,
+      orders: (ordersByBatch.get(b.id) ?? []).map((o) => ({
+        id: o.id,
+        client: o.client,
+        observation: o.observation,
+        status: o.status,
+        createdAt: o.createdAt,
+        deliverAt: o.deliverAt,
+        items: shapeItems(itemsByOrder.get(o.id) ?? []),
+      })),
+    }));
+
+    return NextResponse.json(buildPage(nodes, hasNextPage, count));
   } catch (err) {
     console.log("UNEXPECTED ERROR (batches/summary GET):", err);
     return NextResponse.json({ error: "UNEXPECTED" }, { status: 422 });
   }
+}
+
+/** Group an array by a key. */
+function groupBy<T, K>(arr: T[], key: (t: T) => K): Map<K, T[]> {
+  const m = new Map<K, T[]>();
+  for (const x of arr) {
+    const k = key(x);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k)!.push(x);
+  }
+  return m;
+}
+
+/** Collapse the left-joined item+conversion rows into items with embedded product. */
+function shapeItems(
+  rows: {
+    amount: string;
+    unit: string;
+    productId: number;
+    productDescription: string;
+    productDefaultUnit: string;
+    convUnit: string | null;
+    convFactor: string | null;
+  }[],
+) {
+  const prodMap = new Map<
+    number,
+    { id: number; description: string; defaultMeasurementUnit: string; conversions: { measurementUnit: string; oneDefaultEquals: number }[] }
+  >();
+  const lines: { amount: number; measurementUnit: string; product: number }[] = [];
+
+  for (const r of rows) {
+    if (!prodMap.has(r.productId)) {
+      prodMap.set(r.productId, {
+        id: r.productId,
+        description: r.productDescription,
+        defaultMeasurementUnit: r.productDefaultUnit,
+        conversions: [],
+      });
+      lines.push({ amount: Number(r.amount), measurementUnit: r.unit, product: r.productId });
+    }
+    if (r.convUnit) {
+      prodMap.get(r.productId)!.conversions.push({
+        measurementUnit: r.convUnit,
+        oneDefaultEquals: Number(r.convFactor),
+      });
+    }
+  }
+
+  return lines.map((l) => ({
+    amount: l.amount,
+    measurementUnit: l.measurementUnit,
+    item: prodMap.get(l.product)!,
+  }));
 }

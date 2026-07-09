@@ -1,18 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { connectDB } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { users } from "@/db/schema/users";
 import { createSession, clearSession } from "@/lib/auth";
 import { checkPassword } from "@/lib/passwords";
-import { User } from "@/models/user";
 import type { SessionError, SessionPayload } from "@/types";
 
 /**
  * POST /api/session — login.
  *
- * Ported from the original `resolvers/session.ts`. Username is lowercased +
- * trimmed; non-admin users are rejected with INSUFFICIENT_PERMISSIONS (matches
- * the original behavior — only admins can log in). On success the JWT is set as
- * an httpOnly cookie via `createSession` (changed from the original's
- * body-returned token).
+ * Ported from Mongoose to Drizzle. Username is lowercased + trimmed; non-admin
+ * users are rejected with INSUFFICIENT_PERMISSIONS (matches the original
+ * behavior — only admins can log in). On success the JWT is set as an
+ * httpOnly cookie via `createSession`.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -21,26 +21,26 @@ export async function POST(req: NextRequest) {
       password?: string;
     };
 
-    await connectDB();
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, (username ?? "").trim().toLowerCase()))
+      .limit(1);
 
-    const user = await User.findOne({
-      username: (username ?? "").trim().toLowerCase(),
-    });
-
-    if (!user) {
+    if (user.length === 0) {
       return NextResponse.json(
         { error: "USER_DOESNT_EXIST" satisfies SessionError },
         { status: 404 },
       );
     }
-    if (!user.admin) {
+    if (!user[0].admin) {
       return NextResponse.json(
         { error: "INSUFFICIENT_PERMISSIONS" satisfies SessionError },
         { status: 403 },
       );
     }
 
-    const match = await checkPassword(password ?? "", user.password);
+    const match = await checkPassword(password ?? "", user[0].passwordHash);
     if (!match) {
       return NextResponse.json(
         { error: "WRONG_PASSWORD" satisfies SessionError },
@@ -49,10 +49,10 @@ export async function POST(req: NextRequest) {
     }
 
     const payload: SessionPayload = {
-      sub: String(user._id),
-      name: user.name,
-      username: user.username,
-      admin: user.admin,
+      sub: String(user[0].id),
+      name: user[0].name,
+      username: user[0].username,
+      admin: user[0].admin,
     };
     await createSession(payload);
 

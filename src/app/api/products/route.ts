@@ -1,48 +1,77 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { connectDB } from "@/lib/db";
+import { and, eq, gt, ilike, sql, not } from "drizzle-orm";
+import { db } from "@/db/client";
+import { products, productConversions } from "@/db/schema/products";
+import { decodeCursor, buildPage } from "@/db/pagination";
 import { requireSession } from "@/lib/auth";
-import { Product } from "@/models/product";
-import { decodeCursor, buildPage } from "@/lib/pagination";
 import type { Product as ProductT } from "@/types";
 
 const DEFAULT_PAGE_SIZE = 29;
 
 /**
  * GET /api/products — paginated list of non-archived products, with optional
- * case-insensitive `search` on description.
+ * case-insensitive `search` on description. Keyset pagination ascending on id.
  *
- * Ported verbatim from the original `resolvers/products.ts`. Cursor direction is
- * `$gt` on `_id` (ascending), page size 29.
+ * Shape matches the Mongo version: each node is the product with conversions
+ * embedded as an array (joined here in one query).
  */
 export async function GET(req: NextRequest) {
   const guard = await requireSession();
   if (!guard.ok) return guard.response;
 
   try {
-    await connectDB();
     const { search: pSearch, afterCursor } = Object.fromEntries(
       req.nextUrl.searchParams,
     );
-
     const searchQuery = pSearch ? pSearch.toString() : undefined;
-    const searchFilter = Object.assign(
-      { archived: false },
-      searchQuery ? { description: new RegExp(searchQuery, "i") } : null,
-    );
 
-    const cursorFilters: Record<string, unknown> = afterCursor
-      ? { _id: { $gt: decodeCursor(afterCursor) } }
-      : {};
+    const conds = [not(products.archived)];
+    if (searchQuery) conds.push(ilike(products.description, `%${searchQuery}%`));
+    if (afterCursor) conds.push(gt(products.id, decodeCursor(afterCursor)));
 
-    let items = await Product.find({ $and: [cursorFilters, searchFilter] }).limit(
-      DEFAULT_PAGE_SIZE + 1,
-    );
+    const rows = await db
+      .select()
+      .from(products)
+      .where(and(...conds))
+      .orderBy(products.id)
+      .limit(DEFAULT_PAGE_SIZE + 1)
+      .leftJoin(
+        productConversions,
+        eq(productConversions.productId, products.id),
+      );
 
-    const hasNextPage = items.length > DEFAULT_PAGE_SIZE;
-    if (hasNextPage) items = items.slice(0, DEFAULT_PAGE_SIZE);
+    const hasNextPage = rows.length > DEFAULT_PAGE_SIZE;
+    const trimmed = hasNextPage ? rows.slice(0, DEFAULT_PAGE_SIZE) : rows;
 
-    const totalCount = await Product.countDocuments(searchFilter);
-    return NextResponse.json(buildPage(items, hasNextPage, totalCount));
+    // collapse the left-join back into product + conversions[]
+    const productMap = new Map<number, ProductT>();
+    for (const r of trimmed) {
+      const p = r.products;
+      if (!productMap.has(p.id)) {
+        productMap.set(p.id, {
+          id: String(p.id),
+          description: p.description,
+          defaultMeasurementUnit: p.defaultUnit,
+          conversions: [],
+          archived: p.archived,
+        });
+      }
+      if (r.product_conversions) {
+        productMap.get(p.id)!.conversions.push({
+          measurementUnit: r.product_conversions.unit,
+          oneDefaultEquals: Number(r.product_conversions.oneDefaultEquals),
+        });
+      }
+    }
+
+    const countConds = [not(products.archived)];
+    if (searchQuery) countConds.push(ilike(products.description, `%${searchQuery}%`));
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(products)
+      .where(and(...countConds));
+
+    return NextResponse.json(buildPage([...productMap.values()], hasNextPage, count));
   } catch (err) {
     console.log("UNEXPECTED ERROR (products GET):", err);
     return NextResponse.json({ error: "UNEXPECTED" }, { status: 422 });
@@ -50,15 +79,13 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/products — create a new product.
- * Ported verbatim; `conversions` may be empty.
+ * POST /api/products — create a new product (with conversions).
  */
 export async function POST(req: NextRequest) {
   const guard = await requireSession();
   if (!guard.ok) return guard.response;
 
   try {
-    await connectDB();
     const { description, defaultMeasurementUnit, conversions } = (await req.json()) as {
       description?: string;
       defaultMeasurementUnit?: string;
@@ -69,14 +96,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
     }
 
-    const created = await new Product({
-      description,
-      defaultMeasurementUnit,
-      conversions,
-      archived: false,
-    }).save();
+    const [created] = await db
+      .insert(products)
+      .values({ description, defaultUnit: defaultMeasurementUnit, archived: false })
+      .returning({ id: products.id });
 
-    return NextResponse.json({ id: String(created._id) }, { status: 201 });
+    if (conversions.length > 0) {
+      await db.insert(productConversions).values(
+        conversions.map((c) => ({
+          productId: created.id,
+          unit: c.measurementUnit,
+          oneDefaultEquals: String(c.oneDefaultEquals),
+        })),
+      );
+    }
+
+    return NextResponse.json({ id: String(created.id) }, { status: 201 });
   } catch (err) {
     console.log("UNEXPECTED ERROR (products POST):", err);
     return NextResponse.json({ error: "UNEXPECTED" }, { status: 422 });
