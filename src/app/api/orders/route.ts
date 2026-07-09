@@ -129,14 +129,16 @@ export async function POST(req: NextRequest) {
   if (!guard.ok) return guard.response;
 
   try {
-    const { client, batch, deliverAt, items } = (await req.json()) as {
+    const { clientUnitId, client, observation, batch, deliverAt, items } = (await req.json()) as {
+      clientUnitId?: number | null;
       client?: string;
+      observation?: string;
       batch?: string;
       deliverAt?: string;
       items?: { item: string; amount: number; measurementUnit: string }[];
     };
 
-    if (!client || !batch || !deliverAt || !items) {
+    if (!clientUnitId || !batch || !deliverAt || !items) {
       return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
     }
 
@@ -144,7 +146,9 @@ export async function POST(req: NextRequest) {
       .insert(orders)
       .values({
         batchId: Number(batch),
-        clientSnapshot: client, // kept for audit until client_unit linkage is resolved
+        clientUnitId: clientUnitId,
+        clientSnapshot: client, // kept for audit/display
+        observation: observation || null,
         deliverAt: forceDateDay(deliverAt),
         createdAt: new Date(),
         status: "active",

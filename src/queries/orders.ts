@@ -50,6 +50,8 @@ export interface OrderListItem {
 /** Order as returned by GET /api/orders/:id (fully populated, for the editor). */
 export interface OrderDetail extends Omit<OrderListItem, "items" | "batch"> {
   items: DetailOrderItem[];
+  observation: string | null;
+  clientUnitId: number | null;
   batch: {
     id: string;
     number: number;

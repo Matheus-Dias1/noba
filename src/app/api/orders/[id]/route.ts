@@ -119,17 +119,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const numId = Number(id);
     if (Number.isNaN(numId)) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
 
-    const { client, batch, deliverAt, items } = (await req.json()) as {
+    const { clientUnitId, client, observation, batch, deliverAt, items } = (await req.json()) as {
+      clientUnitId?: number | null;
       client?: string;
+      observation?: string;
       batch?: string;
       deliverAt?: string;
       items?: { item: string; amount: number; measurementUnit: string }[];
     };
 
-    if (client) await db.update(orders).set({ clientSnapshot: client }).where(eq(orders.id, numId));
-    if (batch) await db.update(orders).set({ batchId: Number(batch) }).where(eq(orders.id, numId));
-    if (deliverAt)
-      await db.update(orders).set({ deliverAt: forceDateDay(deliverAt) }).where(eq(orders.id, numId));
+    const patch: Record<string, unknown> = {};
+    if (clientUnitId !== undefined) patch.clientUnitId = clientUnitId;
+    if (client !== undefined) patch.clientSnapshot = client;
+    if (observation !== undefined) patch.observation = observation || null;
+    if (batch) patch.batchId = Number(batch);
+    if (deliverAt) patch.deliverAt = forceDateDay(deliverAt);
+    if (Object.keys(patch).length > 0) {
+      await db.update(orders).set(patch).where(eq(orders.id, numId));
+    }
 
     if (items) {
       await db.delete(orderItems).where(eq(orderItems.orderId, numId));

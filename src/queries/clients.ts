@@ -104,3 +104,34 @@ export function useSaveContact() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Client-unit combobox loader (for the order editor's client picker)  */
+/* ------------------------------------------------------------------ */
+
+import type { AsyncComboboxOption, LoadResult } from "@/components/shared/async-combobox";
+
+/**
+ * Loader for the client-unit AsyncCombobox. Returns flattened
+ * {company} - {unit} options carrying the clientUnitId as the value.
+ * Since the clients list is small (118 companies), we load all and
+ * client-side-filter on search.
+ */
+export async function loadClientUnitOptions(
+  search: string,
+): Promise<LoadResult<string>> {
+  const res = await apiFetch<Client[]>(
+    `/api/clients${search ? `?search=${encodeURIComponent(search)}` : ""}`,
+  );
+  const options: AsyncComboboxOption<string>[] = [];
+  for (const c of res) {
+    for (const u of c.units) {
+      const label =
+        u.name === "PRINCIPAL"
+          ? c.name
+          : `${c.name} - ${u.name}`;
+      options.push({ value: String(u.id), label });
+    }
+  }
+  return { options, hasMore: false };
+}

@@ -33,6 +33,7 @@ import {
   batchLabel,
   type ProductPickerOption,
 } from "@/queries/batches";
+import { loadClientUnitOptions } from "@/queries/clients";
 import { useOrder, useSaveOrder } from "@/queries/orders";
 import type { OrderDetail } from "@/queries/orders";
 import { forceDateDay } from "@/lib/format";
@@ -112,14 +113,21 @@ function OrderForm({
   order?: OrderDetail;
   submitting: boolean;
   onSubmit: (body: {
+    clientUnitId: number | null;
     client: string;
+    observation: string;
     batch: string;
     deliverAt: string;
     items: { item: string; amount: number; measurementUnit: string }[];
   }) => Promise<void>;
 }) {
   // top-row fields
-  const [client, setClient] = useState(order?.client ?? "");
+  const [clientUnit, setClientUnit] = useState<Option | null>(
+    order?.clientUnitId
+      ? { value: String(order.clientUnitId), label: order.client }
+      : null,
+  );
+  const [observation, setObservation] = useState(order?.observation ?? "");
   const [batch, setBatch] = useState<Option | null>(
     order
       ? {
@@ -188,7 +196,7 @@ function OrderForm({
   };
 
   const handleConfirm = async () => {
-    if (!client || !batch || !deliverAt) {
+    if (!clientUnit || !batch || !deliverAt) {
       toast.error("Preencha cliente, lote e data de entrega.");
       return;
     }
@@ -224,7 +232,9 @@ function OrderForm({
 
     const deliverDate = forceDateDay(deliverAt);
     await onSubmit({
-      client,
+      clientUnitId: clientUnit.value ? Number(clientUnit.value) : null,
+      client: clientUnit.label,
+      observation: observation.trim(),
       batch: batch.value,
       deliverAt: deliverDate.toISOString(),
       items: [...merged.values()],
@@ -246,12 +256,13 @@ function OrderForm({
       {/* top row: client / batch / deliver date */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="client">Cliente</Label>
-          <Input
-            id="client"
-            value={client}
-            onChange={(e) => setClient(e.target.value)}
-            placeholder="Cliente"
+          <Label>Cliente</Label>
+          <AsyncCombobox
+            loadOptions={loadClientUnitOptions}
+            value={clientUnit}
+            onChange={(opt) => setClientUnit(opt as Option | null)}
+            placeholder="Selecionar cliente"
+            emptyText="Nenhum cliente"
           />
         </div>
         <div className="space-y-1.5">
@@ -273,6 +284,17 @@ function OrderForm({
             onChange={(e) => setDeliverAt(e.target.value)}
           />
         </div>
+      </div>
+
+      {/* observation */}
+      <div className="space-y-1.5">
+        <Label htmlFor="observation">Observação</Label>
+        <Input
+          id="observation"
+          value={observation}
+          onChange={(e) => setObservation(e.target.value)}
+          placeholder="Observação de entrega (opcional)"
+        />
       </div>
 
       {/* items table */}
