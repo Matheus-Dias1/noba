@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, ShoppingCart, Package, LogOut, Building2 } from "lucide-react";
+import { Boxes, ShoppingCart, Package, LogOut, Building2, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -41,6 +41,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Clientes",
     icon: Building2,
     activePrefixes: ["/clients"],
+  },
+  {
+    href: "/suppliers",
+    label: "Fornecedores",
+    icon: Truck,
+    activePrefixes: ["/suppliers"],
   },
 ];
 
