@@ -43,6 +43,7 @@ type ProductInput = {
   description: string;
   defaultMeasurementUnit: string;
   conversions: Product["conversions"];
+  processings?: { id?: string; name: string }[];
 };
 
 /** useSaveProduct — create (POST) or update (PUT) a product. */

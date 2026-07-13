@@ -13,11 +13,17 @@ export interface Conversion {
   oneDefaultEquals: number;
 }
 
+export interface Processing {
+  id: string;
+  name: string;
+}
+
 export interface Product {
   id: string;
   description: string;
   defaultMeasurementUnit: string;
   conversions: Conversion[];
+  processings: Processing[];
   archived: boolean;
 }
 

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, eq, gt, ilike, sql, not } from "drizzle-orm";
+import { and, eq, gt, ilike, inArray, sql, not } from "drizzle-orm";
 import { db } from "@/db/client";
-import { products, productConversions } from "@/db/schema/products";
+import { products, productConversions, productProcessings } from "@/db/schema/products";
 import { decodeCursor, buildPage } from "@/db/pagination";
 import { requireSession } from "@/lib/auth";
 import type { Product as ProductT } from "@/types";
@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
           description: p.description,
           defaultMeasurementUnit: p.defaultUnit,
           conversions: [],
+          processings: [],
           archived: p.archived,
         });
       }
@@ -60,6 +61,21 @@ export async function GET(req: NextRequest) {
         productMap.get(p.id)!.conversions.push({
           measurementUnit: r.product_conversions.unit,
           oneDefaultEquals: Number(r.product_conversions.oneDefaultEquals),
+        });
+      }
+    }
+
+    // fetch processings for these products (separate query to avoid cartesian)
+    const productIds = [...productMap.keys()];
+    if (productIds.length > 0) {
+      const procRows = await db
+        .select()
+        .from(productProcessings)
+        .where(inArray(productProcessings.productId, productIds));
+      for (const pr of procRows) {
+        productMap.get(pr.productId)?.processings?.push({
+          id: String(pr.id),
+          name: pr.name,
         });
       }
     }
@@ -86,10 +102,11 @@ export async function POST(req: NextRequest) {
   if (!guard.ok) return guard.response;
 
   try {
-    const { description, defaultMeasurementUnit, conversions } = (await req.json()) as {
+    const { description, defaultMeasurementUnit, conversions, processings } = (await req.json()) as {
       description?: string;
       defaultMeasurementUnit?: string;
       conversions?: ProductT["conversions"];
+      processings?: { name: string }[];
     };
 
     if (!description || !defaultMeasurementUnit || !conversions) {
@@ -107,6 +124,15 @@ export async function POST(req: NextRequest) {
           productId: created.id,
           unit: c.measurementUnit,
           oneDefaultEquals: String(c.oneDefaultEquals),
+        })),
+      );
+    }
+
+    if (processings && processings.length > 0) {
+      await db.insert(productProcessings).values(
+        processings.map((p) => ({
+          productId: created.id,
+          name: p.name.toUpperCase(),
         })),
       );
     }

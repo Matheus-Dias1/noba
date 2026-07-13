@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { EditActions } from "@/components/shared/edit-actions";
 import { useProduct, useSaveProduct } from "@/queries/products";
@@ -18,6 +19,7 @@ interface FormValues {
   description: string;
   unit: string;
   conversions: Conversion[];
+  processings: string[];
 }
 
 /**
@@ -51,6 +53,7 @@ export default function ProductEditorPage() {
         defaultAmount: "1",
         convAmount: `${c.oneDefaultEquals}`,
       })) ?? [],
+    processings: product?.processings?.map((p) => p.name) ?? [],
   };
 
   return <ProductForm key={id} isNew={isNew} id={isNew ? undefined : id} initialValues={initialValues} />;
@@ -89,6 +92,7 @@ function ProductForm({
               measurementUnit: c.unit,
               oneDefaultEquals: parseFloat(c.convAmount) / parseFloat(c.defaultAmount),
             })),
+            processings: value.processings.map((name) => ({ name })),
           },
         });
         toast.success(isNew ? "Produto criado" : "Produto atualizado");
@@ -276,6 +280,80 @@ function ProductForm({
           ) : null
         }
       </form.Subscribe>
+
+      {/* Processings — always visible (even before a unit is set). */}
+      <div className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold tracking-tight">Processamentos</h2>
+        <Separator />
+        <form.Field name="processings" mode="array">
+          {(field) => (
+            <ProcessingEditor
+              processings={field.state.value}
+              onAdd={(name) => field.pushValue(name)}
+              onRemove={(i) => field.removeValue(i)}
+            />
+          )}
+        </form.Field>
+      </div>
+    </div>
+  );
+}
+
+/** Processings editor: add/remove processing tags (e.g. "CORTADO", "DESCASCADO"). */
+function ProcessingEditor({
+  processings,
+  onAdd,
+  onRemove,
+}: {
+  processings: string[];
+  onAdd: (name: string) => void;
+  onRemove: (index: number) => void;
+}) {
+  const [name, setName] = useState("");
+
+  const add = () => {
+    const v = name.trim().toUpperCase();
+    if (!v || processings.includes(v)) return;
+    onAdd(v);
+    setName("");
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder="Ex: CORTADO, DESCASCADO"
+          className="max-w-xs"
+        />
+        <Button type="button" size="icon" onClick={add} aria-label="Adicionar processamento">
+          <Plus className="size-4" />
+        </Button>
+      </div>
+      {processings.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {processings.map((p, i) => (
+            <Badge key={p} variant="secondary" className="gap-1 font-normal">
+              {p}
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                className="ml-1 text-muted-foreground hover:text-destructive"
+                aria-label={`Remover ${p}`}
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

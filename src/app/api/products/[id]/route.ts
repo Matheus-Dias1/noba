@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { products, productConversions } from "@/db/schema/products";
+import { products, productConversions, productProcessings } from "@/db/schema/products";
 import { requireSession } from "@/lib/auth";
 import type { Product as ProductT } from "@/types";
 
@@ -29,6 +29,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       description: p.description,
       defaultMeasurementUnit: p.defaultUnit,
       conversions: [],
+      processings: [],
       archived: p.archived,
     };
     for (const r of rows) {
@@ -38,6 +39,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           oneDefaultEquals: Number(r.product_conversions.oneDefaultEquals),
         });
       }
+    }
+    // fetch processings for this product
+    const procRows = await db
+      .select()
+      .from(productProcessings)
+      .where(eq(productProcessings.productId, numId));
+    for (const pr of procRows) {
+      product.processings.push({ id: String(pr.id), name: pr.name });
     }
     return NextResponse.json(product);
   } catch (err) {
@@ -59,10 +68,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const numId = Number(id);
     if (Number.isNaN(numId)) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
 
-    const { description, defaultMeasurementUnit, conversions } = (await req.json()) as {
+    const { description, defaultMeasurementUnit, conversions, processings } = (await req.json()) as {
       description?: string;
       defaultMeasurementUnit?: string;
       conversions?: ProductT["conversions"];
+      processings?: { id?: string; name: string }[];
     };
 
     if (description) await db.update(products).set({ description }).where(eq(products.id, numId));
@@ -78,6 +88,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             productId: numId,
             unit: c.measurementUnit,
             oneDefaultEquals: String(c.oneDefaultEquals),
+          })),
+        );
+      }
+    }
+
+    if (processings) {
+      // replace the full set
+      await db.delete(productProcessings).where(eq(productProcessings.productId, numId));
+      if (processings.length > 0) {
+        await db.insert(productProcessings).values(
+          processings.map((pr) => ({
+            productId: numId,
+            name: pr.name.toUpperCase(),
           })),
         );
       }
