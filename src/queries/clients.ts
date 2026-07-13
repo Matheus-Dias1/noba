@@ -100,7 +100,7 @@ export function useSaveContact() {
       role?: string;
       phone?: string;
       email?: string;
-    }) => apiFetch("/api/client-contacts", { method: "POST", body: data }),
+    }) => apiFetch("/api/contacts", { method: "POST", body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
   });
 }

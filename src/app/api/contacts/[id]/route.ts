@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { clientContacts } from "@/db/schema/client-contacts";
+import { contacts } from "@/db/schema/contacts";
 import { requireSession } from "@/lib/auth";
 
-/** PUT /api/client-contacts/:id — update a contact. */
+/** PUT /api/contacts/:id — update a contact. */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireSession();
   if (!guard.ok) return guard.response;
@@ -20,16 +20,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (body[f] !== undefined) patch[f] = body[f];
     }
     if (Object.keys(patch).length > 0) {
-      await db.update(clientContacts).set(patch).where(eq(clientContacts.id, numId));
+      await db.update(contacts).set(patch).where(eq(contacts.id, numId));
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.log("UNEXPECTED ERROR (client-contacts/:id PUT):", err);
+    console.log("UNEXPECTED ERROR (contacts/:id PUT):", err);
     return NextResponse.json({ error: "UNEXPECTED" }, { status: 422 });
   }
 }
 
-/** DELETE /api/client-contacts/:id — hard delete (contacts have no archive flag). */
+/** DELETE /api/contacts/:id — hard delete. */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireSession();
   if (!guard.ok) return guard.response;
@@ -39,10 +39,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const numId = Number(id);
     if (Number.isNaN(numId)) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
 
-    await db.delete(clientContacts).where(eq(clientContacts.id, numId));
+    await db.delete(contacts).where(eq(contacts.id, numId));
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.log("UNEXPECTED ERROR (client-contacts/:id DELETE):", err);
+    console.log("UNEXPECTED ERROR (contacts/:id DELETE):", err);
     return NextResponse.json({ error: "UNEXPECTED" }, { status: 422 });
   }
 }

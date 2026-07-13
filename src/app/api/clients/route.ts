@@ -3,7 +3,7 @@ import { and, ilike, inArray, not } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients } from "@/db/schema/clients";
 import { clientUnits } from "@/db/schema/client-units";
-import { clientContacts } from "@/db/schema/client-contacts";
+import { contacts } from "@/db/schema/contacts";
 import { requireSession } from "@/lib/auth";
 
 /**
@@ -33,12 +33,12 @@ export async function GET(req: NextRequest) {
       .from(clientUnits)
       .where(inArray(clientUnits.clientId, ids));
     const unitIds = units.map((u) => u.id);
-    const contacts =
+    const contactRows =
       unitIds.length > 0
         ? await db
             .select()
-            .from(clientContacts)
-            .where(inArray(clientContacts.clientUnitId, unitIds))
+            .from(contacts)
+            .where(inArray(contacts.clientUnitId, unitIds))
         : [];
 
     const unitsByClient = new Map<number, typeof units>();
@@ -46,8 +46,9 @@ export async function GET(req: NextRequest) {
       if (!unitsByClient.has(u.clientId)) unitsByClient.set(u.clientId, []);
       unitsByClient.get(u.clientId)!.push(u);
     }
-    const contactsByUnit = new Map<number, typeof contacts>();
-    for (const c of contacts) {
+    const contactsByUnit = new Map<number, typeof contactRows>();
+    for (const c of contactRows) {
+      if (c.clientUnitId === null) continue; // supplier-only contact, skip
       if (!contactsByUnit.has(c.clientUnitId)) contactsByUnit.set(c.clientUnitId, []);
       contactsByUnit.get(c.clientUnitId)!.push(c);
     }

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients } from "@/db/schema/clients";
 import { clientUnits } from "@/db/schema/client-units";
-import { clientContacts } from "@/db/schema/client-contacts";
+import { contacts } from "@/db/schema/contacts";
 import { requireSession } from "@/lib/auth";
 
 /** GET /api/clients/:id — single client with units + contacts. */
@@ -20,12 +20,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!client) return NextResponse.json(null, { status: 404 });
 
     const units = await db.select().from(clientUnits).where(eq(clientUnits.clientId, numId));
-    const contactsByUnit = new Map<number, typeof clientContacts.$inferSelect[]>();
+    const contactsByUnit = new Map<number, typeof contacts.$inferSelect[]>();
     for (const u of units) {
       const cs = await db
         .select()
-        .from(clientContacts)
-        .where(eq(clientContacts.clientUnitId, u.id));
+        .from(contacts)
+        .where(eq(contacts.clientUnitId, u.id));
       contactsByUnit.set(u.id, cs);
     }
 
