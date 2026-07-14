@@ -1,20 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { neon } from "@neondatabase/serverless";
 import { db } from "@/db/client";
 import { clientUnits } from "@/db/schema/client-units";
-import { orders } from "@/db/schema/orders";
-import { orderItems } from "@/db/schema/orders";
-import { products } from "@/db/schema/products";
 import { requireSession } from "@/lib/auth";
 
 /**
  * GET /api/clients/:id/stats — aggregated stats for the stats tab.
- *
- * Returns:
- *  - totalOrders, totalItems, lastOrderDate, rank
- *  - ordersByMonth: [{ month: "2024-01", count: N }]
- *  - topProducts: [{ name, totalItems }] (top 10 by order-item count)
- *  - ordersByUnit: [{ unitName, count }]
+ * Uses raw Neon sql() for the aggregation queries (avoids Drizzle's
+ * db.execute() result-shape incompatibility with the HTTP driver).
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireSession();
@@ -43,25 +37,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
-    // total orders + last order date
-    const [totals] = await db
-      .select({
-        totalOrders: sql<number>`count(*)::int`,
-        lastOrder: sql<Date>`max(${orders.createdAt})`,
-      })
-      .from(orders)
-      .where(sql`${orders.clientUnitId} = ANY(${unitIds})`);
+    // raw Neon sql() for aggregations (returns plain rows[])
+    const sqlRaw = neon(process.env.DATABASE_URL!);
+    const placeholders = unitIds.map((_, i) => `$${i + 1}`).join(",");
+    const totalRows = await sqlRaw.query(
+      `SELECT count(*)::int AS total_orders, max(created_at) AS last_order FROM orders WHERE client_unit_id IN (${placeholders})`,
+      unitIds,
+    );
 
-    // total items
-    const [itemsCount] = await db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(orderItems)
-      .innerJoin(orders, eq(orders.id, orderItems.orderId))
-      .where(sql`${orders.clientUnitId} = ANY(${unitIds})`);
+    const itemCountRows = await sqlRaw.query(
+      `SELECT count(*)::int AS total FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.client_unit_id IN (${placeholders})`,
+      unitIds,
+    );
 
-    // rank: how many clients have more orders
-    const rankRows = await db.execute(sql`
-      WITH client_order_counts AS (
+    const rankRows = await sqlRaw.query(
+      `WITH client_order_counts AS (
         SELECT c.id, count(o.id)::int AS cnt
         FROM clients c
         JOIN client_units cu ON cu.client_id = c.id
@@ -71,52 +61,50 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       )
       SELECT count(*)::int + 1 AS rank
       FROM client_order_counts
-      WHERE cnt > (SELECT cnt FROM client_order_counts WHERE id = ${clientId})
-    `);
-    const rankRowsArr = rankRows as unknown as Record<string, unknown>[];
-    const rank = rankRowsArr[0]?.rank ?? null;
+      WHERE cnt > (SELECT cnt FROM client_order_counts WHERE id = $1)`,
+      [clientId],
+    );
 
-    // orders by month
-    const monthRows = await db.execute(sql`
-      SELECT
-        to_char(date_trunc('month', ${orders.createdAt}), 'YYYY-MM') AS month,
-        count(*)::int AS count
-      FROM ${orders}
-      WHERE ${orders.clientUnitId} = ANY(${unitIds}) AND ${orders.archived} = false
-      GROUP BY 1
-      ORDER BY 1
-    `);
+    const monthRows = await sqlRaw.query(
+      `SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, count(*)::int AS count
+       FROM orders WHERE client_unit_id IN (${placeholders}) AND archived = false
+       GROUP BY 1 ORDER BY 1`,
+      unitIds,
+    );
 
-    // top products by line count (top 10)
-    const productRows = await db.execute(sql`
-      SELECT p.description AS name, count(*)::int AS total_items
-      FROM ${orderItems} oi
-      JOIN ${orders} o ON o.id = oi.order_id
-      JOIN ${products} p ON p.id = oi.product_id
-      WHERE ${orders.clientUnitId} = ANY(${unitIds}) AND o.archived = false
-      GROUP BY p.description
-      ORDER BY total_items DESC
-      LIMIT 10
-    `);
+    const productRows = await sqlRaw.query(
+      `SELECT p.description AS name, count(*)::int AS total_items
+       FROM order_items oi JOIN orders o ON o.id = oi.order_id JOIN products p ON p.id = oi.product_id
+       WHERE o.client_unit_id IN (${placeholders}) AND o.archived = false
+       GROUP BY p.description ORDER BY total_items DESC LIMIT 10`,
+      unitIds,
+    );
 
-    // orders by unit
-    const unitRows = await db.execute(sql`
-      SELECT cu.name AS unit_name, count(o.id)::int AS count
-      FROM ${clientUnits} cu
-      JOIN ${orders} o ON o.client_unit_id = cu.id
-      WHERE cu.client_id = ${clientId} AND o.archived = false
-      GROUP BY cu.name
-      ORDER BY count DESC
-    `);
+    const unitRows = await sqlRaw.query(
+      `SELECT cu.name AS unit_name, count(o.id)::int AS count
+       FROM client_units cu JOIN orders o ON o.client_unit_id = cu.id
+       WHERE cu.client_id = $1 AND o.archived = false
+       GROUP BY cu.name ORDER BY count DESC`,
+      [clientId],
+    );
 
     return NextResponse.json({
-      totalOrders: totals.totalOrders,
-      totalItems: itemsCount.total,
-      lastOrderDate: totals.lastOrder,
-      rank,
-      ordersByMonth: (monthRows as unknown as Record<string, unknown>[]).map((r) => ({ month: r.month as string, count: r.count as number })),
-      topProducts: (productRows as unknown as Record<string, unknown>[]).map((r) => ({ name: r.name as string, totalItems: r.total_items as number })),
-      ordersByUnit: (unitRows as unknown as Record<string, unknown>[]).map((r) => ({ unitName: r.unit_name as string, count: r.count as number })),
+      totalOrders: totalRows[0]?.total_orders ?? 0,
+      totalItems: itemCountRows[0]?.total ?? 0,
+      lastOrderDate: totalRows[0]?.last_order ?? null,
+      rank: rankRows[0]?.rank ?? null,
+      ordersByMonth: monthRows.map((r: Record<string, unknown>) => ({
+        month: r.month as string,
+        count: r.count as number,
+      })),
+      topProducts: productRows.map((r: Record<string, unknown>) => ({
+        name: r.name as string,
+        totalItems: r.total_items as number,
+      })),
+      ordersByUnit: unitRows.map((r: Record<string, unknown>) => ({
+        unitName: r.unit_name as string,
+        count: r.count as number,
+      })),
     });
   } catch (err) {
     console.log("UNEXPECTED ERROR (clients/:id/stats GET):", err);
