@@ -41,8 +41,11 @@ export interface DetailOrderItem {
 export interface OrderListItem {
   id: string;
   client: string;
+  observation: string | null;
   createdAt: string;
   deliverAt: string;
+  status: "active" | "cancelled";
+  clientUnitId: number | null;
   items: ListOrderItem[];
   batch: { id: string; number: number };
 }

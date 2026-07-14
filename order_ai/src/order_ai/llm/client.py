@@ -12,14 +12,8 @@ class LLMClient(Protocol):
         schema: dict,
     ) -> str:
         """
-        Sends a prompt to the model and returns the raw JSON response.
+        Sends a prompt to the model.
 
-        Args:
-            system_prompt: System instructions.
-            user_prompt: User input.
-            schema: JSON Schema used for structured output.
-
-        Returns:
-            A JSON string produced by the model.
+        Returns the raw JSON string produced by the model.
         """
         ...

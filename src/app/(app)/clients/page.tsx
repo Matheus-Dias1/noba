@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Search, Building2, MapPin, Phone, ChevronDown } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -129,6 +130,13 @@ function ClientRow({
                   {contactCount} {contactCount === 1 ? "contato" : "contatos"}
                 </Badge>
               )}
+              <Link
+                href={`/clients/${client.id}`}
+                className="rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Ver detalhes →
+              </Link>
               <ChevronDown
                 className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")}
               />

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import httpx
 
 from .client import LLMClient
@@ -8,9 +10,16 @@ class LMStudioClient(LLMClient):
         self,
         base_url: str = "http://127.0.0.1:1234/v1",
         model: str = "qwen/qwen3.6-27b",
+        timeout: float = 120.0,
     ):
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")
         self.model = model
+        self.timeout = timeout
+
+        self.http = httpx.Client(
+            base_url=self.base_url,
+            timeout=self.timeout,
+        )
 
     def generate(
         self,
@@ -19,9 +28,9 @@ class LMStudioClient(LLMClient):
         user_prompt: str,
         schema: dict,
     ) -> str:
-
         payload = {
             "model": self.model,
+            "temperature": 0,
             "messages": [
                 {
                     "role": "system",
@@ -32,7 +41,6 @@ class LMStudioClient(LLMClient):
                     "content": user_prompt,
                 },
             ],
-            "temperature": 0,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
@@ -42,10 +50,9 @@ class LMStudioClient(LLMClient):
             },
         }
 
-        response = httpx.post(
-            f"{self.base_url}/chat/completions",
+        response = self.http.post(
+            "/chat/completions",
             json=payload,
-            timeout=120,
         )
 
         if response.status_code != 200:
@@ -54,4 +61,9 @@ class LMStudioClient(LLMClient):
 
         data = response.json()
 
-        return data["choices"][0]["message"]["content"]
+        try:
+            return data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError) as e:
+            raise RuntimeError(
+                f"Unexpected LM Studio response:\n{data}"
+            ) from e

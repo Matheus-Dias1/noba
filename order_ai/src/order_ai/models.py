@@ -1,47 +1,51 @@
-from datetime import datetime
 from datetime import date
-from pathlib import Path
+from datetime import datetime
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 
-class Attachment(BaseModel):
+Cell = str | int | float | datetime | None
+
+
+class AttachmentKind(StrEnum):
+    SPREADSHEET = "spreadsheet"
+    PDF = "pdf"
+    IMAGE = "image"
+    DOCUMENT = "document"
+    UNKNOWN = "unknown"
+
+
+class EmailAttachment(BaseModel):
     filename: str
     mime_type: str
-    size: int
-    path: Path | None = None
+    data: bytes
 
 
 class EmailDocument(BaseModel):
-    source: Path
+    from_name: str | None = None
+    from_email: str | None = None
 
-    sender: str
-    subject: str
-    date: datetime | None
+    subject: str | None = None
+    date: datetime | None = None
 
     body: str
 
-    attachments: list[Attachment] = Field(default_factory=list)
+    attachments: list[EmailAttachment] = Field(default_factory=list)
 
 
 class Document(BaseModel):
-    source: Path
+    source: Literal["email", "attachment"]
 
-    kind: Literal[
-        "email",
-        "spreadsheet",
-        "pdf",
-        "image",
-        "word",
-        "unknown",
-    ]
+    kind: AttachmentKind
 
-    mime_type: str
+    filename: str | None = None
+    mime_type: str | None = None
 
     text: str | None = None
+    binary: bytes | None = None
 
-    attachment: Attachment | None = None
 
 class CandidateItem(BaseModel):
     description: str
@@ -57,3 +61,44 @@ class CandidateOrder(BaseModel):
 
 class ExtractionResult(BaseModel):
     orders: list[CandidateOrder] = Field(default_factory=list)
+
+class WorkbookSheet(BaseModel):
+    name: str
+    rows: list[list[Cell]] = Field(default_factory=list)
+
+class Workbook(BaseModel):
+    sheets: list[WorkbookSheet] = Field(default_factory=list)
+
+class WorkbookRow(BaseModel):
+    product: Cell = None
+    quantity: Cell = None
+    unit: Cell = None
+    unit_price: Cell = None
+    line_total: Cell = None
+
+class Worksheet(BaseModel):
+    name: str
+    rows: list[WorkbookRow] = Field(default_factory=list)
+
+class WorkbookLayout(BaseModel):
+    sheet: str
+
+    header_row: int
+    first_data_row: int
+
+    product_column: int
+    quantity_column: int
+
+    unit_column: int | None = None
+    unit_price_column: int | None = None
+    line_total_column: int | None = None
+
+    quantity_filter: Literal[
+        "all",
+        "non_empty",
+        "greater_than_zero",
+    ] = "greater_than_zero"
+
+
+class WorkbookAnalysis(BaseModel):
+    layouts: list[WorkbookLayout] = Field(default_factory=list)
