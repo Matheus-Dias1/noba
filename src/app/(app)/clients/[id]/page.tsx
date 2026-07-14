@@ -19,7 +19,10 @@ import {
 import { useClient } from "@/queries/clients";
 import { useClientStats } from "@/queries/client-stats";
 import { useOrders } from "@/queries/orders";
-import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { ContactsManager } from "@/components/shared/contacts-manager";
 import { formatDate, formatNumber, padBatchNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -27,8 +30,16 @@ import type { OrderListItem } from "@/queries/orders";
 import type { ClientUnit } from "@/queries/clients";
 
 const CHART_COLORS = [
-  "#265948", "#47846f", "#5a9a82", "#6db095", "#80c6a8",
-  "#df3d0a", "#e8622b", "#f08748", "#f8ac65", "#ffd182",
+  "#265948",
+  "#47846f",
+  "#5a9a82",
+  "#6db095",
+  "#80c6a8",
+  "#df3d0a",
+  "#e8622b",
+  "#f08748",
+  "#f8ac65",
+  "#ffd182",
 ];
 
 type Tab = "orders" | "stats";
@@ -55,11 +66,18 @@ export default function ClientDetailPage() {
       {/* header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/clients")} aria-label="Voltar">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/clients")}
+            aria-label="Voltar"
+          >
             <ArrowLeft className="size-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {client.name}
+            </h1>
             <p className="text-sm text-muted-foreground">
               {client.cnpj && `CNPJ: ${client.cnpj}`}
               {client.cnpj && client.units.length > 0 && " · "}
@@ -72,7 +90,6 @@ export default function ClientDetailPage() {
           <Pencil className="size-4" /> Editar
         </Button>
       </div>
-
       {/* tabs */}
       <div className="flex rounded-lg border p-0.5 w-fit">
         {[
@@ -92,7 +109,9 @@ export default function ClientDetailPage() {
       </div>
 
       {/* content */}
-      {tab === "orders" && <OrdersTab clientId={clientId} units={client.units} />}
+      {tab === "orders" && (
+        <OrdersTab clientId={clientId} units={client.units} />
+      )}
       {tab === "stats" && <StatsTab clientId={clientId} units={client.units} />}
     </div>
   );
@@ -101,13 +120,17 @@ export default function ClientDetailPage() {
 /* ==================== ORDERS TAB ==================== */
 
 function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
-  const { data, fetchNextPage, isFetchingNextPage, hasNextPage } = useOrders({});
+  const { data, fetchNextPage, isFetchingNextPage, hasNextPage } = useOrders(
+    {},
+  );
 
   const unitIdSet = useMemo(() => new Set(units.map((u) => u.id)), [units]);
 
   const orders = useMemo(() => {
     const all = data?.pages.flatMap((p) => p.edges.map((e) => e.node)) ?? [];
-    return all.filter((o) => o.clientUnitId !== null && unitIdSet.has(o.clientUnitId));
+    return all.filter(
+      (o) => o.clientUnitId !== null && unitIdSet.has(o.clientUnitId),
+    );
   }, [data, unitIdSet]);
 
   const columns: DataTableColumn<OrderListItem>[] = [
@@ -122,14 +145,18 @@ function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
       header: "Lote",
       className: "w-20 text-center",
       cell: (o) => (
-        <span className="tabular-nums text-muted-foreground">{padBatchNumber(o.batch.number)}</span>
+        <span className="tabular-nums text-muted-foreground">
+          {padBatchNumber(o.batch.number)}
+        </span>
       ),
     },
     {
       header: "Entrega",
       className: "w-32 text-center",
       cell: (o) => (
-        <span className="tabular-nums text-muted-foreground">{formatDate(o.deliverAt)}</span>
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(o.deliverAt)}
+        </span>
       ),
     },
     {
@@ -145,9 +172,13 @@ function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
       className: "w-24 text-center",
       cell: (o) =>
         o.status === "cancelled" ? (
-          <Badge variant="destructive" className="font-normal">cancelada</Badge>
+          <Badge variant="destructive" className="font-normal">
+            cancelada
+          </Badge>
         ) : (
-          <Badge variant="secondary" className="font-normal">ativa</Badge>
+          <Badge variant="secondary" className="font-normal">
+            ativa
+          </Badge>
         ),
     },
   ];
@@ -161,7 +192,12 @@ function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
         emptyText="Nenhum pedido deste cliente."
       />
       {hasNextPage && (
-        <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage} className="w-fit">
+        <Button
+          variant="outline"
+          onClick={() => fetchNextPage()}
+          disabled={isFetchingNextPage}
+          className="w-fit"
+        >
           {isFetchingNextPage ? "Carregando..." : "Carregar mais"}
         </Button>
       )}
@@ -171,7 +207,13 @@ function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
 
 /* ==================== STATS TAB ==================== */
 
-function StatsTab({ clientId, units }: { clientId: number; units: ClientUnit[] }) {
+function StatsTab({
+  clientId,
+  units,
+}: {
+  clientId: number;
+  units: ClientUnit[];
+}) {
   const { data: stats, status } = useClientStats(clientId);
 
   if (status === "pending" || !stats) {
@@ -192,7 +234,10 @@ function StatsTab({ clientId, units }: { clientId: number; units: ClientUnit[] }
         <StatCard label="Pedidos" value={formatNumber(stats.totalOrders)} />
         <StatCard label="Itens" value={formatNumber(stats.totalItems)} />
         <StatCard label="Ranking" value={stats.rank ? `#${stats.rank}` : "—"} />
-        <StatCard label="Último pedido" value={stats.lastOrderDate ? formatDate(stats.lastOrderDate) : "—"} />
+        <StatCard
+          label="Último pedido"
+          value={stats.lastOrderDate ? formatDate(stats.lastOrderDate) : "—"}
+        />
       </div>
 
       {/* orders by month */}
@@ -231,19 +276,32 @@ function StatsTab({ clientId, units }: { clientId: number; units: ClientUnit[] }
               Top produtos
             </h3>
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={stats.topProducts} layout="vertical" margin={{ left: 20 }}>
-                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+              <BarChart
+                data={stats.topProducts}
+                layout="vertical"
+                margin={{ left: 20 }}
+              >
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 11 }}
+                  allowDecimals={false}
+                />
                 <YAxis
                   type="category"
                   dataKey="name"
                   tick={{ fontSize: 11 }}
                   width={120}
-                  tickFormatter={(v: string) => (v.length > 18 ? v.slice(0, 18) + "…" : v)}
+                  tickFormatter={(v: string) =>
+                    v.length > 18 ? v.slice(0, 18) + "…" : v
+                  }
                 />
                 <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                 <Bar dataKey="totalItems" radius={[0, 4, 4, 0]}>
                   {stats.topProducts.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    <Cell
+                      key={i}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
                   ))}
                 </Bar>
               </BarChart>
@@ -267,7 +325,10 @@ function StatsTab({ clientId, units }: { clientId: number; units: ClientUnit[] }
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                   {stats.ordersByUnit.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    <Cell
+                      key={i}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
                   ))}
                 </Bar>
               </BarChart>
@@ -284,14 +345,23 @@ function StatsTab({ clientId, units }: { clientId: number; units: ClientUnit[] }
         {units.map((unit) => (
           <div key={unit.id} className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="font-medium">{unit.name}</Badge>
-              {[unit.street, unit.city, unit.state].filter(Boolean).join(", ") && (
+              <Badge variant="outline" className="font-medium">
+                {unit.name}
+              </Badge>
+              {[unit.street, unit.city, unit.state]
+                .filter(Boolean)
+                .join(", ") && (
                 <span className="text-sm text-muted-foreground">
-                  {[unit.street, unit.city, unit.state].filter(Boolean).join(", ")}
+                  {[unit.street, unit.city, unit.state]
+                    .filter(Boolean)
+                    .join(", ")}
                 </span>
               )}
             </div>
-            <ContactsManager contacts={unit.contacts} owner={{ type: "clientUnit", id: unit.id }} />
+            <ContactsManager
+              contacts={unit.contacts}
+              owner={{ type: "clientUnit", id: unit.id }}
+            />
           </div>
         ))}
       </div>

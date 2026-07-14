@@ -109,7 +109,10 @@ export function useSaveContact() {
 /* Client-unit combobox loader (for the order editor's client picker)  */
 /* ------------------------------------------------------------------ */
 
-import type { AsyncComboboxOption, LoadResult } from "@/components/shared/async-combobox";
+import type {
+  AsyncComboboxOption,
+  LoadResult,
+} from "@/components/shared/async-combobox";
 
 /**
  * Loader for the client-unit AsyncCombobox. Returns flattened
@@ -126,10 +129,7 @@ export async function loadClientUnitOptions(
   const options: AsyncComboboxOption<string>[] = [];
   for (const c of res) {
     for (const u of c.units) {
-      const label =
-        u.name === "PRINCIPAL"
-          ? c.name
-          : `${c.name} - ${u.name}`;
+      const label = u.name === "SEDE" ? c.name : `${c.name} - ${u.name}`;
       options.push({ value: String(u.id), label });
     }
   }

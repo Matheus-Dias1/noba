@@ -15,6 +15,13 @@
       "when": 1783545676000,
       "tag": "0001_contacts_unified",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783545677000,
+      "tag": "0002_unit_cnpj_sede",
+      "breakpoints": true
     }
   ]
 }

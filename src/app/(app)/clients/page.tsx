@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, Building2, MapPin, Phone, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Building2,
+  MapPin,
+  Phone,
+  ChevronDown,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +58,11 @@ export default function ClientsPage() {
             Empresas, unidades de entrega e contatos
           </p>
         </div>
-        <Button size="icon-lg" onClick={() => setDialogOpen(true)} aria-label="Novo cliente">
+        <Button
+          size="icon-lg"
+          onClick={() => setDialogOpen(true)}
+          aria-label="Novo cliente"
+        >
           <Plus className="size-5" />
         </Button>
       </div>
@@ -108,63 +119,94 @@ function ClientRow({
 
   return (
     <Collapsible open={open} onOpenChange={onToggle}>
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden py-0 gap-0">
         <CollapsibleTrigger
           render={
             <button className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/40" />
           }
         >
-            <Building2 className="size-5 shrink-0 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <h3 className="truncate font-medium">{client.name}</h3>
-              {client.cnpj && (
-                <p className="text-xs text-muted-foreground">CNPJ: {client.cnpj}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="font-normal">
-                {unitCount} {unitCount === 1 ? "unidade" : "unidades"}
+          <Building2 className="size-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate font-medium">{client.name}</h3>
+            {client.cnpj && (
+              <p className="text-xs text-muted-foreground">
+                CNPJ: {client.cnpj}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="font-normal">
+              {unitCount} {unitCount === 1 ? "unidade" : "unidades"}
+            </Badge>
+            {contactCount > 0 && (
+              <Badge variant="outline" className="font-normal">
+                {contactCount} {contactCount === 1 ? "contato" : "contatos"}
               </Badge>
-              {contactCount > 0 && (
-                <Badge variant="outline" className="font-normal">
-                  {contactCount} {contactCount === 1 ? "contato" : "contatos"}
-                </Badge>
+            )}
+            <Link
+              href={`/clients/${client.id}`}
+              className="rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Ver detalhes →
+            </Link>
+            <ChevronDown
+              className={cn(
+                "size-4 text-muted-foreground transition-transform",
+                open && "rotate-180",
               )}
-              <Link
-                href={`/clients/${client.id}`}
-                className="rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Ver detalhes →
-              </Link>
-              <ChevronDown
-                className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")}
-              />
-            </div>
+            />
+          </div>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="flex flex-col gap-3 border-t p-4">
+          <div className="flex flex-col gap-3 border-t p-4 bg-muted/60">
             {client.units.map((unit) => {
-              const addr = [unit.street, unit.number, unit.neighborhood, unit.city, unit.state]
+              const addr = [
+                unit.street,
+                unit.number,
+                unit.neighborhood,
+                unit.city,
+                unit.state,
+              ]
                 .filter(Boolean)
                 .join(", ");
               return (
-                <div key={unit.id} className="rounded-lg border p-3">
+                <div key={unit.id} className="rounded-lg p-3 bg-background">
                   <div className="flex items-center gap-2">
                     <MapPin className="size-4 text-muted-foreground" />
                     <span className="font-medium">{unit.name}</span>
                   </div>
-                  {addr && <p className="ml-6 text-sm text-muted-foreground">{addr}</p>}
+                  {addr && (
+                    <p className="ml-6 text-sm text-muted-foreground">{addr}</p>
+                  )}
                   {unit.contacts.length > 0 && (
                     <div className="ml-6 mt-2 flex flex-col gap-1">
                       {unit.contacts.map((c) => (
-                        <div key={c.id} className="flex items-center gap-2 text-sm">
+                        <div
+                          key={c.id}
+                          className="flex items-center gap-2 text-sm"
+                        >
                           <Phone className="size-3.5 text-muted-foreground" />
                           <span>
                             {c.name || "—"}
-                            {c.role && <span className="text-muted-foreground"> · {c.role}</span>}
-                            {c.phone && <span className="text-muted-foreground"> · {c.phone}</span>}
-                            {c.email && <span className="text-muted-foreground"> · {c.email}</span>}
+                            {c.role && (
+                              <span className="text-muted-foreground">
+                                {" "}
+                                · {c.role}
+                              </span>
+                            )}
+                            {c.phone && (
+                              <span className="text-muted-foreground">
+                                {" "}
+                                · {c.phone}
+                              </span>
+                            )}
+                            {c.email && (
+                              <span className="text-muted-foreground">
+                                {" "}
+                                · {c.email}
+                              </span>
+                            )}
                           </span>
                         </div>
                       ))}
@@ -174,7 +216,9 @@ function ClientRow({
               );
             })}
             {unitCount === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhuma unidade cadastrada.</p>
+              <p className="text-sm text-muted-foreground">
+                Nenhuma unidade cadastrada.
+              </p>
             )}
           </div>
         </CollapsibleContent>

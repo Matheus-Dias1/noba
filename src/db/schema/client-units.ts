@@ -10,7 +10,8 @@ export const clientUnits = pgTable("client_units", {
   clientId: integer("client_id")
     .notNull()
     .references(() => clients.id, { onDelete: "cascade" }),
-  name: text("name").notNull(), // e.g. "FRIGORIFICO", "UBERABA"
+  name: text("name").notNull(), // e.g. "FRIGORIFICO", "UBERABA", "SEDE"
+  cnpj: text("cnpj"), // unit-level CNPJ (may differ from the company's)
   street: text("street"),
   number: text("number"),
   neighborhood: text("neighborhood"),
