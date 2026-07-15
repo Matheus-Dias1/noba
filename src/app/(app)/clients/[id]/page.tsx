@@ -120,10 +120,7 @@ export default function ClientDetailPage() {
               {client.name}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {client.cnpj && `CNPJ: ${client.cnpj}`}
-              {client.cnpj && client.units.length > 0 && " · "}
-              {client.units.length > 0 &&
-                `${client.units.length} ${client.units.length === 1 ? "unidade" : "unidades"}`}
+              {[client.legalName, client.cnpj].filter(Boolean).join(" · ")}
             </p>
           </div>
         </div>

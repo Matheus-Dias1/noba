@@ -71,7 +71,10 @@ export function useSaveClient() {
       id
         ? apiFetch(`/api/clients/${id}`, { method: "PUT", body: data })
         : apiFetch("/api/clients", { method: "POST", body: data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      if (id) qc.invalidateQueries({ queryKey: ["client", id] });
+    },
   });
 }
 
