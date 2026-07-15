@@ -26,6 +26,7 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { ContactsManager } from "@/components/shared/contacts-manager";
+import { ClientDialog } from "@/components/clients/client-dialog";
 import { formatDate, formatNumber, padBatchNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OrderListItem } from "@/queries/orders";
@@ -74,6 +75,7 @@ export default function ClientDetailPage() {
   const clientId = Number(params.id);
   const { data: client, status } = useClient(clientId);
   const [tab, setTab] = useState<Tab>("orders");
+  const [editOpen, setEditOpen] = useState(false);
 
   if (status === "pending" || !client) {
     return (
@@ -87,6 +89,21 @@ export default function ClientDetailPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6 md:p-8">
+      <ClientDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        client={
+          client
+            ? {
+                id: client.id,
+                name: client.name,
+                cnpj: client.cnpj,
+                legalName: client.legalName,
+              }
+            : undefined
+        }
+      />
+
       {/* header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -110,7 +127,7 @@ export default function ClientDetailPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
           <Pencil className="size-4" /> Editar
         </Button>
       </div>
