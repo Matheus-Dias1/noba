@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -30,20 +30,27 @@ export function ClientDialog({
   onOpenChange: (open: boolean) => void;
   client?: { id: number; name: string; cnpj: string | null; legalName: string | null };
 }) {
-  const isEdit = !!client;
-  const [name, setName] = useState("");
-  const [cnpj, setCnpj] = useState("");
-  const [legalName, setLegalName] = useState("");
-  const save = useSaveClient();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        {open && <ClientDialogForm client={client} onClose={() => onOpenChange(false)} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-  // Seed form fields whenever the dialog opens (create=empty, edit=prefilled)
-  useEffect(() => {
-    if (open) {
-      setName(client?.name ?? "");
-      setCnpj(client?.cnpj ?? "");
-      setLegalName(client?.legalName ?? "");
-    }
-  }, [open, client]);
+function ClientDialogForm({
+  client,
+  onClose,
+}: {
+  client?: { id: number; name: string; cnpj: string | null; legalName: string | null };
+  onClose: () => void;
+}) {
+  const isEdit = !!client;
+  const [name, setName] = useState(client?.name ?? "");
+  const [cnpj, setCnpj] = useState(client?.cnpj ?? "");
+  const [legalName, setLegalName] = useState(client?.legalName ?? "");
+  const save = useSaveClient();
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -57,7 +64,7 @@ export function ClientDialog({
         },
       });
       toast.success(isEdit ? "Cliente atualizado" : "Cliente criado");
-      onOpenChange(false);
+      onClose();
     } catch (err) {
       toast.error(
         `Erro ao ${isEdit ? "atualizar" : "criar"} cliente: ${err instanceof Error ? err.message : err}`,
@@ -66,10 +73,7 @@ export function ClientDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        {open && (
-          <>
+    <>
             <DialogHeader>
               <DialogTitle>{isEdit ? "Editar cliente" : "Novo cliente"}</DialogTitle>
               <DialogDescription>
@@ -105,13 +109,13 @@ export function ClientDialog({
                   id="client-legal"
                   value={legalName}
                   onChange={(e) => setLegalName(e.target.value)}
-                  placeholder="BRF S.A."
+                  placeholder="EMPRESA EXEMPLO LTDA."
                 />
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={save.isPending}>
+              <Button variant="outline" onClick={onClose} disabled={save.isPending}>
                 Cancelar
               </Button>
               <Button onClick={handleSubmit} disabled={!name.trim() || save.isPending}>
@@ -119,9 +123,6 @@ export function ClientDialog({
                 {isEdit ? "Salvar" : "Criar"}
               </Button>
             </DialogFooter>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

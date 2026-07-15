@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -39,32 +39,30 @@ export function UnitDialog({
     complement: string | null;
   };
 }) {
-  const [name, setName] = useState("");
-  const [street, setStreet] = useState("");
-  const [number, setNumber] = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [zip, setZip] = useState("");
-  const [complement, setComplement] = useState("");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        {open && unit && <UnitDialogForm unit={unit} onClose={() => onOpenChange(false)} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type EditableUnit = NonNullable<Parameters<typeof UnitDialog>[0]["unit"]>;
+
+function UnitDialogForm({ unit, onClose }: { unit: EditableUnit; onClose: () => void }) {
+  const [name, setName] = useState(unit.name);
+  const [street, setStreet] = useState(unit.street ?? "");
+  const [number, setNumber] = useState(unit.number ?? "");
+  const [neighborhood, setNeighborhood] = useState(unit.neighborhood ?? "");
+  const [city, setCity] = useState(unit.city ?? "");
+  const [state, setState] = useState(unit.state ?? "");
+  const [zip, setZip] = useState(unit.zip ?? "");
+  const [complement, setComplement] = useState(unit.complement ?? "");
   const update = useUpdateUnit();
 
-  // Seed form fields whenever the dialog opens
-  useEffect(() => {
-    if (open && unit) {
-      setName(unit.name ?? "");
-      setStreet(unit.street ?? "");
-      setNumber(unit.number ?? "");
-      setNeighborhood(unit.neighborhood ?? "");
-      setCity(unit.city ?? "");
-      setState(unit.state ?? "");
-      setZip(unit.zip ?? "");
-      setComplement(unit.complement ?? "");
-    }
-  }, [open, unit]);
-
   const handleSubmit = async () => {
-    if (!unit || !name.trim()) return;
+    if (!name.trim()) return;
     try {
       await update.mutateAsync({
         id: unit.id,
@@ -80,7 +78,7 @@ export function UnitDialog({
         },
       });
       toast.success("Unidade atualizada");
-      onOpenChange(false);
+      onClose();
     } catch (err) {
       toast.error(
         `Erro ao atualizar unidade: ${err instanceof Error ? err.message : err}`,
@@ -89,10 +87,7 @@ export function UnitDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        {open && (
-          <>
+    <>
             <DialogHeader>
               <DialogTitle>Editar unidade</DialogTitle>
               <DialogDescription>
@@ -188,7 +183,7 @@ export function UnitDialog({
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={onClose}
                 disabled={update.isPending}
               >
                 Cancelar
@@ -203,9 +198,6 @@ export function UnitDialog({
                 Salvar
               </Button>
             </DialogFooter>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

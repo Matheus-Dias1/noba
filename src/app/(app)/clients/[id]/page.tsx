@@ -71,6 +71,19 @@ function formatMonthLabel(ym: string): string {
 
 type Tab = "orders" | "stats";
 
+type TooltipEntry<TPayload> = {
+  color?: string;
+  dataKey?: string | number;
+  payload: TPayload;
+  value?: number;
+};
+
+type ChartTooltipProps<TPayload> = {
+  active?: boolean;
+  label?: string | number;
+  payload?: ReadonlyArray<TooltipEntry<TPayload>>;
+};
+
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -558,7 +571,10 @@ const TOOLTIP_STYLE = {
 const CURSOR_FILL = "var(--accent)";
 
 /** Tooltip for monthly chart: "Outubro 2025 — XX pedidos" */
-function MonthTooltip({ active, payload }: any) {
+function MonthTooltip({
+  active,
+  payload,
+}: ChartTooltipProps<{ month: string; count: number }>) {
   if (!active || !payload?.length) return null;
   const { month, count } = payload[0].payload;
   return (
@@ -579,9 +595,13 @@ function MonthTooltip({ active, payload }: any) {
 }
 
 /** Tooltip for stacked monthly chart: "Outubro 2025" + per-unit breakdown */
-function MonthByUnitTooltip({ active, payload, label }: any) {
+function MonthByUnitTooltip({
+  active,
+  payload,
+  label,
+}: ChartTooltipProps<Record<string, number>>) {
   if (!active || !payload?.length) return null;
-  const total = payload.reduce((s: number, p: any) => s + (p.value ?? 0), 0);
+  const total = payload.reduce((sum, entry) => sum + (entry.value ?? 0), 0);
   return (
     <div
       className="rounded-lg border px-3 py-2 text-xs shadow-md"
@@ -592,20 +612,21 @@ function MonthByUnitTooltip({ active, payload, label }: any) {
       }}
     >
       <p className="mb-1 font-medium">
-        {formatMonthLabel(label)} — {total} {total === 1 ? "pedido" : "pedidos"}
+        {formatMonthLabel(String(label ?? ""))} — {total}{" "}
+        {total === 1 ? "pedido" : "pedidos"}
       </p>
       <div className="flex flex-col gap-0.5">
         {payload
-          .filter((p: any) => p.value > 0)
-          .map((p: any) => (
-            <div key={p.dataKey} className="flex items-center gap-2">
+          .filter((entry) => (entry.value ?? 0) > 0)
+          .map((entry) => (
+            <div key={entry.dataKey} className="flex items-center gap-2">
               <span
                 className="size-2 shrink-0 rounded-full"
-                style={{ background: p.color }}
+                style={{ background: entry.color }}
               />
-              <span className="flex-1">{p.dataKey}</span>
+              <span className="flex-1">{entry.dataKey}</span>
               <span className="tabular-nums text-muted-foreground">
-                {p.value}
+                {entry.value}
               </span>
             </div>
           ))}
@@ -615,7 +636,10 @@ function MonthByUnitTooltip({ active, payload, label }: any) {
 }
 
 /** Tooltip for top products: "{name} — XX itens" */
-function ItemsTooltip({ active, payload }: any) {
+function ItemsTooltip({
+  active,
+  payload,
+}: ChartTooltipProps<{ name: string; totalItems: number }>) {
   if (!active || !payload?.length) return null;
   const { name, totalItems } = payload[0].payload;
   return (
@@ -636,7 +660,10 @@ function ItemsTooltip({ active, payload }: any) {
 }
 
 /** Tooltip for pie chart: "{unitName} — XX pedidos" */
-function PieTooltip({ active, payload }: any) {
+function PieTooltip({
+  active,
+  payload,
+}: ChartTooltipProps<{ unitName: string; count: number }>) {
   if (!active || !payload?.length) return null;
   const { unitName, count } = payload[0].payload;
   return (

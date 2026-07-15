@@ -1,6 +1,10 @@
 "use client";
 
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/sidebar-02/app-sidebar";
 
 /**
@@ -9,7 +13,7 @@ import { DashboardSidebar } from "@/components/sidebar-02/app-sidebar";
  * only when collapsed. Toggle via the SidebarTrigger button in the sidebar
  * header (or Cmd+B).
  *
- * No mobile header bar — the sidebar handles its own mobile mode (slide-over).
+ * On mobile, a persistent header trigger opens the sidebar as a slide-over.
  */
 export function AppShell({
   userName,
@@ -22,6 +26,10 @@ export function AppShell({
     <SidebarProvider>
       <DashboardSidebar userName={userName} />
       <SidebarInset className="flex flex-col overflow-hidden">
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 md:hidden">
+          <SidebarTrigger aria-label="Abrir menu de navegação" />
+          <span className="font-semibold">Oba Green</span>
+        </header>
         <main className="relative flex-1 overflow-y-auto bg-background">
           {children}
         </main>

@@ -57,8 +57,8 @@ const navRoutes: Route[] = [
 ];
 
 export function DashboardSidebar({ userName }: { userName: string }) {
-  const { state } = useSidebar();
-  const isCollapsed = state === "collapsed";
+  const { isMobile, state } = useSidebar();
+  const isCollapsed = !isMobile && state === "collapsed";
   const logout = useLogout();
 
   return (
