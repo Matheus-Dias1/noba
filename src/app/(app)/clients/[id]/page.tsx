@@ -17,7 +17,6 @@ import {
   Cell,
   PieChart,
   Pie,
-  Legend,
 } from "recharts";
 import { useClient } from "@/queries/clients";
 import { useClientStats } from "@/queries/client-stats";
@@ -252,23 +251,26 @@ function StatsTab({ clientId }: { clientId: number }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* number cards + pie chart (pie hidden when only 1 unit) */}
-      <div className="grid gap-4 lg:grid-cols-4">
-        <StatCard label="Pedidos" value={formatNumber(stats.totalOrders)} />
-        <StatCard label="Itens" value={formatNumber(stats.totalItems)} />
-        <StatCard label="Ranking" value={stats.rank ? `#${stats.rank}` : "—"} />
-        <StatCard
-          label="Último pedido"
-          value={stats.lastOrderDate ? formatDate(stats.lastOrderDate) : "—"}
-        />
+      {/* stat cards (2×2) + pie chart to the right (spans both rows) */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
+        {/* 2×2 grid of stat cards */}
+        <div className="grid flex-1 grid-cols-2 gap-4">
+          <StatCard label="Pedidos" value={formatNumber(stats.totalOrders)} />
+          <StatCard label="Itens" value={formatNumber(stats.totalItems)} />
+          <StatCard label="Ranking" value={stats.rank ? `#${stats.rank}` : "—"} />
+          <StatCard
+            label="Último pedido"
+            value={stats.lastOrderDate ? formatDate(stats.lastOrderDate) : "—"}
+          />
+        </div>
 
         {/* pie chart for orders by unit (only when 2+ units) */}
         {stats.ordersByUnit.length > 1 && (
-          <Card className="p-4 lg:col-span-4">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Pedidos por unidade
+          <Card className="p-4 lg:w-72">
+            <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Por unidade
             </h3>
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
                   data={stats.ordersByUnit}
@@ -276,8 +278,8 @@ function StatsTab({ clientId }: { clientId: number }) {
                   nameKey="unitName"
                   cx="50%"
                   cy="50%"
-                  outerRadius={90}
-                  innerRadius={45}
+                  outerRadius={65}
+                  innerRadius={35}
                   paddingAngle={2}
                 >
                   {stats.ordersByUnit.map((_, i) => (
@@ -288,14 +290,25 @@ function StatsTab({ clientId }: { clientId: number }) {
                   ))}
                 </Pie>
                 <Tooltip content={<PieTooltip />} contentStyle={TOOLTIP_STYLE} />
-                <Legend
-                  wrapperStyle={{ fontSize: 12 }}
-                  formatter={(value: string) => (
-                    <span className="text-foreground">{value}</span>
-                  )}
-                />
               </PieChart>
             </ResponsiveContainer>
+            {/* legend below pie */}
+            <div className="mt-2 flex flex-col gap-1">
+              {stats.ordersByUnit.map((u, i) => (
+                <div key={u.unitName} className="flex items-center gap-2 text-xs">
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-foreground">
+                    {u.unitName}
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {u.count}
+                  </span>
+                </div>
+              ))}
+            </div>
           </Card>
         )}
       </div>
