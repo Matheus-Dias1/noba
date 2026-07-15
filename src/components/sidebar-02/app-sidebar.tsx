@@ -72,12 +72,17 @@ export function DashboardSidebar({ userName }: { userName: string }) {
         )}
       >
         <span className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
             OG
           </span>
-          {!isCollapsed && (
-            <span className="font-semibold text-sidebar-foreground">Oba Green</span>
-          )}
+          <span
+            className={cn(
+              "whitespace-nowrap font-semibold text-sidebar-foreground transition-opacity duration-200",
+              isCollapsed ? "pointer-events-none w-0 overflow-hidden opacity-0" : "opacity-100"
+            )}
+          >
+            Oba Green
+          </span>
         </span>
         <div className={cn("flex items-center gap-1", isCollapsed && "flex-row md:flex-col-reverse")}>
           <ModeToggle />

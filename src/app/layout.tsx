@@ -22,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning className={`${poppins.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+    <html lang="pt-BR" suppressHydrationWarning className={`${poppins.variable} antialiased`}>
+      <body className="bg-background text-foreground">
         <Providers>{children}</Providers>
         <Toaster richColors position="bottom-right" />
       </body>
