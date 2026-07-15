@@ -34,6 +34,7 @@ interface ListOrderItem {
 export interface DetailOrderItem {
   amount: number;
   measurementUnit: string;
+  processingId: number | null;
   item: DetailItemProduct;
 }
 
@@ -120,7 +121,7 @@ export interface OrderInput {
   client: string;
   batch: string;
   deliverAt: string;
-  items: { item: string; amount: number; measurementUnit: string }[];
+  items: { item: string; amount: number; measurementUnit: string; processingId?: number | null }[];
 }
 
 /** useSaveOrder — create (POST) or update (PUT) an order. */

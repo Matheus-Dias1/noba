@@ -45,11 +45,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!orderRow) return NextResponse.json(null, { status: 404 });
 
-    // items with product + conversions
+    // items with product + conversions + processing
     const itemRows = await db
       .select({
         amount: orderItems.amount,
         unit: orderItems.unit,
+        processingId: orderItems.processingId,
         productId: products.id,
         productDescription: products.description,
         productDefaultUnit: products.defaultUnit,
@@ -63,7 +64,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     // collapse conversions into the product
     const prodMap = new Map<number, { id: number; description: string; defaultMeasurementUnit: string; conversions: { measurementUnit: string; oneDefaultEquals: number }[] }>();
-    const lineOrder: { amount: number; measurementUnit: string; product: number }[] = [];
+    const lineOrder: { amount: number; measurementUnit: string; processingId: number | null; product: number }[] = [];
     for (const r of itemRows) {
       if (!prodMap.has(r.productId)) {
         prodMap.set(r.productId, {
@@ -72,7 +73,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           defaultMeasurementUnit: r.productDefaultUnit,
           conversions: [],
         });
-        lineOrder.push({ amount: Number(r.amount), measurementUnit: r.unit, product: r.productId });
+        lineOrder.push({ amount: Number(r.amount), measurementUnit: r.unit, processingId: r.processingId, product: r.productId });
       }
       if (r.convUnit) {
         prodMap.get(r.productId)!.conversions.push({
@@ -100,6 +101,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       items: lineOrder.map((l) => ({
         amount: l.amount,
         measurementUnit: l.measurementUnit,
+        processingId: l.processingId,
         item: prodMap.get(l.product)!,
       })),
     });
@@ -125,7 +127,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       observation?: string;
       batch?: string;
       deliverAt?: string;
-      items?: { item: string; amount: number; measurementUnit: string }[];
+      items?: { item: string; amount: number; measurementUnit: string; processingId?: number | null }[];
     };
 
     const patch: Record<string, unknown> = {};
@@ -147,6 +149,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             productId: Number(it.item),
             amount: String(it.amount),
             unit: it.measurementUnit,
+            processingId: it.processingId ?? null,
           })),
         );
       }

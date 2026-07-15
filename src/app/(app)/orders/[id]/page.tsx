@@ -45,6 +45,8 @@ interface Row {
   product: ProductPickerOption | null;
   amount: string;
   unit: string;
+  /** selected processing id (null = no processing) */
+  processingId: number | null;
   /** true while this row is being added or edited inline. */
   editing: boolean;
 }
@@ -154,9 +156,11 @@ function OrderForm({
             label: it.item.description,
             defaultMeasurementUnit: it.item.defaultMeasurementUnit,
             conversions: it.item.conversions,
+            processings: [],
           },
           amount: `${it.amount}`,
           unit: it.measurementUnit,
+          processingId: it.processingId ?? null,
           editing: false,
         }))
       : [],
@@ -164,7 +168,7 @@ function OrderForm({
 
   const addRow = () =>
     setRows((prev) => [
-      { key: newRowKey(), product: null, amount: "", unit: "", editing: true },
+      { key: newRowKey(), product: null, amount: "", unit: "", processingId: null, editing: true },
       ...prev,
     ]);
 
@@ -211,13 +215,13 @@ function OrderForm({
       return;
     }
 
-    // merge-on-duplicate: rows sharing product+unit are summed
+    // merge-on-duplicate: rows sharing product+unit+processing are summed
     const merged = new Map<
       string,
-      { item: string; amount: number; measurementUnit: string }
+      { item: string; amount: number; measurementUnit: string; processingId: number | null }
     >();
     valid.forEach((r) => {
-      const k = `${r.product!.value}-${r.unit}`;
+      const k = `${r.product!.value}-${r.unit}-${r.processingId ?? ""}`;
       const amt = parseFloat(r.amount);
       const existing = merged.get(k);
       if (existing)
@@ -227,6 +231,7 @@ function OrderForm({
           item: r.product!.value,
           amount: amt,
           measurementUnit: r.unit,
+          processingId: r.processingId,
         });
     });
 
@@ -315,8 +320,11 @@ function OrderForm({
               <TableHead className="h-10 w-32 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Quantidade
               </TableHead>
-              <TableHead className="h-10 w-32 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="h-10 w-28 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Unidade
+              </TableHead>
+              <TableHead className="h-10 w-36 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Processamento
               </TableHead>
               <TableHead className="h-10 w-28 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Ações
@@ -327,7 +335,7 @@ function OrderForm({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   Nenhum item. Clique em “Adicionar item”.
@@ -371,6 +379,9 @@ function ReadRow({
   onEdit: () => void;
   onRemove: () => void;
 }) {
+  const processingName = row.processingId
+    ? row.product?.processings.find((p) => p.id === row.processingId)?.name
+    : null;
   return (
     <TableRow>
       <TableCell className="font-medium">{row.product?.label}</TableCell>
@@ -379,6 +390,9 @@ function ReadRow({
       </TableCell>
       <TableCell className="text-center text-muted-foreground">
         {row.unit}
+      </TableCell>
+      <TableCell className="text-center text-muted-foreground">
+        {processingName ?? "—"}
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-center gap-1">
@@ -405,7 +419,7 @@ function ReadRow({
   );
 }
 
-/** Editing item row: inline product / amount / unit inputs + save/cancel/remove. */
+/** Editing item row: inline product / amount / unit / processing inputs + save/cancel/remove. */
 function EditingRow({
   row,
   onChange,
@@ -432,6 +446,8 @@ function EditingRow({
       ]
     : [];
 
+  const hasProcessings = (row.product?.processings?.length ?? 0) > 0;
+
   return (
     <TableRow>
       <TableCell>
@@ -439,7 +455,11 @@ function EditingRow({
           loadOptions={loadProductOptions}
           value={row.product}
           onChange={(opt) =>
-            onChange({ product: opt as ProductPickerOption | null, unit: "" })
+            onChange({
+              product: opt as ProductPickerOption | null,
+              unit: "",
+              processingId: null,
+            })
           }
           placeholder="Produto"
           emptyText="Nenhum produto"
@@ -472,6 +492,30 @@ function EditingRow({
             ))}
           </SelectContent>
         </Select>
+      </TableCell>
+      <TableCell>
+        {hasProcessings ? (
+          <Select
+            value={row.processingId ? String(row.processingId) : "none"}
+            onValueChange={(v) =>
+              onChange({ processingId: v === "none" ? null : Number(v) })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Nenhum" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Nenhum</SelectItem>
+              {row.product!.processings.map((p) => (
+                <SelectItem key={p.id} value={String(p.id)}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="text-center text-muted-foreground">—</span>
+        )}
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-center gap-1">

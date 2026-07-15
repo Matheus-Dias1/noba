@@ -104,9 +104,10 @@ export async function loadBatchOptions(
 export interface ProductPickerOption extends AsyncComboboxOption<string> {
   defaultMeasurementUnit: string;
   conversions: Conversion[];
+  processings: { id: number; name: string }[];
 }
 
-/** Loader for the product AsyncCombobox (carries unit/conversion metadata). */
+/** Loader for the product AsyncCombobox (carries unit/conversion/processing metadata). */
 export async function loadProductOptions(
   search: string,
   cursor?: string,
@@ -114,7 +115,7 @@ export async function loadProductOptions(
   const params = new URLSearchParams();
   if (search) params.set("search", search);
   if (cursor) params.set("afterCursor", cursor);
-  const res = await apiFetch<Paginated<{ id: string; description: string; defaultMeasurementUnit: string; conversions: Conversion[] }>>(
+  const res = await apiFetch<Paginated<{ id: string; description: string; defaultMeasurementUnit: string; conversions: Conversion[]; processings: { id: number; name: string }[] }>>(
     `/api/products?${params}`,
   );
   return {
@@ -123,6 +124,7 @@ export async function loadProductOptions(
       label: e.node.description,
       defaultMeasurementUnit: e.node.defaultMeasurementUnit,
       conversions: e.node.conversions,
+      processings: e.node.processings,
     })),
     hasMore: res.pageInfo.hasNextPage,
     nextCursor: res.pageInfo.endCursor ?? undefined,

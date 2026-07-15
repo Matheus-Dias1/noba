@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
       observation?: string;
       batch?: string;
       deliverAt?: string;
-      items?: { item: string; amount: number; measurementUnit: string }[];
+      items?: { item: string; amount: number; measurementUnit: string; processingId?: number | null }[];
     };
 
     if (!clientUnitId || !batch || !deliverAt || !items) {
@@ -178,6 +178,7 @@ export async function POST(req: NextRequest) {
           productId: Number(it.item),
           amount: String(it.amount),
           unit: it.measurementUnit,
+          processingId: it.processingId ?? null,
         })),
       );
     }
