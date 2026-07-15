@@ -27,6 +27,7 @@ import {
 } from "@/components/shared/data-table";
 import { ContactsManager } from "@/components/shared/contacts-manager";
 import { ClientDialog } from "@/components/clients/client-dialog";
+import { UnitDialog } from "@/components/clients/unit-dialog";
 import { formatDate, formatNumber, padBatchNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OrderListItem } from "@/queries/orders";
@@ -130,7 +131,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* unidades & contatos — above tabs so it's always visible */}
-      <UnitsSection units={client.units} />
+      <UnitsSection units={client.units} clientId={clientId} />
 
       {/* tabs */}
       <div className="flex rounded-lg border p-0.5 w-fit">
@@ -486,9 +487,22 @@ function StatsTab({ clientId }: { clientId: number }) {
 
 /* ==================== UNITS SECTION ==================== */
 
-function UnitsSection({ units }: { units: ClientUnit[] }) {
+function UnitsSection({
+  units,
+  clientId,
+}: {
+  units: ClientUnit[];
+  clientId: number;
+}) {
+  const [editingUnit, setEditingUnit] = useState<ClientUnit | null>(null);
+
   return (
     <div className="flex flex-col gap-3">
+      <UnitDialog
+        open={!!editingUnit}
+        onOpenChange={(o) => !o && setEditingUnit(null)}
+        unit={editingUnit ?? undefined}
+      />
       <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Unidades &amp; Contatos
       </h3>
@@ -507,10 +521,20 @@ function UnitsSection({ units }: { units: ClientUnit[] }) {
                   .join(", ")}
               </span>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6"
+              onClick={() => setEditingUnit(unit)}
+              aria-label={`Editar ${unit.name}`}
+            >
+              <Pencil className="size-3.5" />
+            </Button>
           </div>
           <ContactsManager
             contacts={unit.contacts}
             owner={{ type: "clientUnit", id: unit.id }}
+            detailQueryKey={["client", clientId]}
           />
         </div>
       ))}

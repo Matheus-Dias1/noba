@@ -93,6 +93,33 @@ export function useSaveUnit() {
   });
 }
 
+/** useUpdateUnit — edit a unit (name + address fields). */
+export function useUpdateUnit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: {
+        name?: string;
+        street?: string;
+        number?: string;
+        neighborhood?: string;
+        city?: string;
+        state?: string;
+        zip?: string;
+        complement?: string;
+      };
+    }) => apiFetch(`/api/client-units/${id}`, { method: "PUT", body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["client"] });
+    },
+  });
+}
+
 /** useSaveContact — add a contact to a unit. */
 export function useSaveContact() {
   const qc = useQueryClient();

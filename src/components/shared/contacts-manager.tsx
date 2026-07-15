@@ -36,11 +36,14 @@ interface EditingState {
 export function ContactsManager({
   contacts,
   owner,
+  detailQueryKey,
 }: {
   contacts: ContactEntry[];
   owner:
     | { type: "clientUnit"; id: number }
     | { type: "supplier"; id: number };
+  /** Extra query key to invalidate on mutation (e.g. ["client", 42]) */
+  detailQueryKey?: readonly unknown[];
 }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<EditingState | null>(null);
@@ -68,6 +71,7 @@ export function ContactsManager({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["suppliers"] });
+      if (detailQueryKey) qc.invalidateQueries({ queryKey: detailQueryKey });
       setEditing(null);
     },
   });
@@ -77,6 +81,7 @@ export function ContactsManager({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["suppliers"] });
+      if (detailQueryKey) qc.invalidateQueries({ queryKey: detailQueryKey });
     },
   });
 
