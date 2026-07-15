@@ -32,6 +32,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         lastOrderDate: null,
         rank: null,
         ordersByMonth: [],
+        ordersByMonthByUnit: [],
         topProducts: [],
         ordersByUnit: [],
       });
@@ -88,6 +89,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       [clientId],
     );
 
+    // per-unit monthly series for the "Por unidade" toggle on the monthly chart
+    const monthByUnitRows = await sqlRaw.query(
+      `SELECT to_char(date_trunc('month', o.created_at), 'YYYY-MM') AS month,
+              cu.id AS unit_id, cu.name AS unit_name,
+              count(o.id)::int AS count
+       FROM orders o JOIN client_units cu ON cu.id = o.client_unit_id
+       WHERE o.client_unit_id IN (${placeholders}) AND o.archived = false
+       GROUP BY 1, cu.id, cu.name
+       ORDER BY 1, cu.name`,
+      unitIds,
+    );
+
     return NextResponse.json({
       totalOrders: totalRows[0]?.total_orders ?? 0,
       totalItems: itemCountRows[0]?.total ?? 0,
@@ -95,6 +108,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       rank: rankRows[0]?.rank ?? null,
       ordersByMonth: monthRows.map((r: Record<string, unknown>) => ({
         month: r.month as string,
+        count: r.count as number,
+      })),
+      ordersByMonthByUnit: monthByUnitRows.map((r: Record<string, unknown>) => ({
+        month: r.month as string,
+        unitId: r.unit_id as number,
+        unitName: r.unit_name as string,
         count: r.count as number,
       })),
       topProducts: productRows.map((r: Record<string, unknown>) => ({

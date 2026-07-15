@@ -9,6 +9,12 @@ export interface ClientStats {
   lastOrderDate: string | null;
   rank: number | null;
   ordersByMonth: { month: string; count: number }[];
+  ordersByMonthByUnit: {
+    month: string;
+    unitId: number;
+    unitName: string;
+    count: number;
+  }[];
   topProducts: { name: string; totalItems: number }[];
   ordersByUnit: { unitName: string; count: number }[];
 }

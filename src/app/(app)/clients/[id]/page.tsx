@@ -237,6 +237,30 @@ function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
 
 function StatsTab({ clientId }: { clientId: number }) {
   const { data: stats, status } = useClientStats(clientId);
+  const [monthView, setMonthView] = useState<"total" | "unit">("total");
+
+  // Transform per-unit monthly series into stacked format: [{month, [unitName]: count}]
+  const { monthByUnitData, unitNames } = useMemo(() => {
+    if (!stats || stats.ordersByMonthByUnit.length === 0) {
+      return {
+        monthByUnitData: [] as Record<string, unknown>[],
+        unitNames: [] as string[],
+      };
+    }
+    const names = Array.from(
+      new Set(stats.ordersByMonthByUnit.map((r) => r.unitName)),
+    );
+    const byMonth = new Map<string, Record<string, number | string>>();
+    for (const r of stats.ordersByMonthByUnit) {
+      if (!byMonth.has(r.month)) byMonth.set(r.month, { month: r.month });
+      byMonth.get(r.month)![r.unitName] = r.count;
+    }
+    const data = Array.from(byMonth.values()).sort((a, b) =>
+      String(a.month).localeCompare(String(b.month)),
+    );
+    return { monthByUnitData: data, unitNames: names };
+  }, [stats]);
+  const hasMultipleUnits = stats ? stats.ordersByUnit.length > 1 : false;
 
   if (status === "pending" || !stats) {
     return (
@@ -257,7 +281,10 @@ function StatsTab({ clientId }: { clientId: number }) {
         <div className="grid flex-1 grid-cols-2 gap-4">
           <StatCard label="Pedidos" value={formatNumber(stats.totalOrders)} />
           <StatCard label="Itens" value={formatNumber(stats.totalItems)} />
-          <StatCard label="Ranking" value={stats.rank ? `#${stats.rank}` : "—"} />
+          <StatCard
+            label="Ranking"
+            value={stats.rank ? `#${stats.rank}` : "—"}
+          />
           <StatCard
             label="Último pedido"
             value={stats.lastOrderDate ? formatDate(stats.lastOrderDate) : "—"}
@@ -289,16 +316,24 @@ function StatsTab({ clientId }: { clientId: number }) {
                     />
                   ))}
                 </Pie>
-                <Tooltip content={<PieTooltip />} contentStyle={TOOLTIP_STYLE} />
+                <Tooltip
+                  content={<PieTooltip />}
+                  contentStyle={TOOLTIP_STYLE}
+                />
               </PieChart>
             </ResponsiveContainer>
             {/* legend below pie */}
             <div className="mt-2 flex flex-col gap-1">
               {stats.ordersByUnit.map((u, i) => (
-                <div key={u.unitName} className="flex items-center gap-2 text-xs">
+                <div
+                  key={u.unitName}
+                  className="flex items-center gap-2 text-xs"
+                >
                   <span
                     className="size-2.5 shrink-0 rounded-full"
-                    style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                    style={{
+                      background: CHART_COLORS[i % CHART_COLORS.length],
+                    }}
                   />
                   <span className="min-w-0 flex-1 truncate text-foreground">
                     {u.unitName}
@@ -316,27 +351,77 @@ function StatsTab({ clientId }: { clientId: number }) {
       {/* orders by month */}
       {stats.ordersByMonth.length > 0 && (
         <Card className="p-4">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Pedidos por mês
-          </h3>
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Pedidos por mês
+            </h3>
+            {hasMultipleUnits && (
+              <div className="flex rounded-lg border p-0.5">
+                {[
+                  { key: "total" as const, label: "Geral" },
+                  { key: "unit" as const, label: "Por unidade" },
+                ].map((opt) => (
+                  <Button
+                    key={opt.key}
+                    size="sm"
+                    variant={monthView === opt.key ? "default" : "ghost"}
+                    onClick={() => setMonthView(opt.key)}
+                    className="rounded-md px-2.5 py-1 text-xs"
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={stats.ordersByMonth}>
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 11 }}
-                tickFormatter={(m: string) => {
-                  const [, mo] = m.split("-");
-                  return `${parseInt(mo)}/${m.slice(2, 4)}`;
-                }}
-              />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip
-                cursor={{ fill: CURSOR_FILL }}
-                content={<MonthTooltip />}
-                contentStyle={TOOLTIP_STYLE}
-              />
-              <Bar dataKey="count" fill="#265948" radius={[4, 4, 0, 0]} />
-            </BarChart>
+            {monthView === "total" ? (
+              <BarChart data={stats.ordersByMonth}>
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(m: string) => {
+                    const [, mo] = m.split("-");
+                    return `${parseInt(mo)}/${m.slice(2, 4)}`;
+                  }}
+                />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: CURSOR_FILL }}
+                  content={<MonthTooltip />}
+                  contentStyle={TOOLTIP_STYLE}
+                />
+                <Bar dataKey="count" fill="#265948" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            ) : (
+              <BarChart data={monthByUnitData}>
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(m: string) => {
+                    const [, mo] = m.split("-");
+                    return `${parseInt(mo)}/${m.slice(2, 4)}`;
+                  }}
+                />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: CURSOR_FILL }}
+                  content={<MonthByUnitTooltip />}
+                  contentStyle={TOOLTIP_STYLE}
+                />
+                {unitNames.map((name, i) => (
+                  <Bar
+                    key={name}
+                    dataKey={name}
+                    stackId="units"
+                    fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    radius={
+                      i === unitNames.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]
+                    }
+                  />
+                ))}
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </Card>
       )}
@@ -374,10 +459,7 @@ function StatsTab({ clientId }: { clientId: number }) {
               />
               <Bar dataKey="totalItems" radius={[0, 4, 4, 0]}>
                 {stats.topProducts.map((_, i) => (
-                  <Cell
-                    key={i}
-                    fill={CHART_COLORS[i % CHART_COLORS.length]}
-                  />
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Bar>
             </BarChart>
@@ -452,12 +534,52 @@ function MonthTooltip({ active, payload }: any) {
   return (
     <div
       className="rounded-lg border px-3 py-2 text-xs shadow-md"
-      style={{ background: "var(--popover)", borderColor: "var(--border)", color: "var(--popover-foreground)" }}
+      style={{
+        background: "var(--popover)",
+        borderColor: "var(--border)",
+        color: "var(--popover-foreground)",
+      }}
     >
       <p className="font-medium">{formatMonthLabel(month)}</p>
       <p className="text-muted-foreground">
         {count} {count === 1 ? "pedido" : "pedidos"}
       </p>
+    </div>
+  );
+}
+
+/** Tooltip for stacked monthly chart: "Outubro 2025" + per-unit breakdown */
+function MonthByUnitTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const total = payload.reduce((s: number, p: any) => s + (p.value ?? 0), 0);
+  return (
+    <div
+      className="rounded-lg border px-3 py-2 text-xs shadow-md"
+      style={{
+        background: "var(--popover)",
+        borderColor: "var(--border)",
+        color: "var(--popover-foreground)",
+      }}
+    >
+      <p className="mb-1 font-medium">
+        {formatMonthLabel(label)} — {total} {total === 1 ? "pedido" : "pedidos"}
+      </p>
+      <div className="flex flex-col gap-0.5">
+        {payload
+          .filter((p: any) => p.value > 0)
+          .map((p: any) => (
+            <div key={p.dataKey} className="flex items-center gap-2">
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: p.color }}
+              />
+              <span className="flex-1">{p.dataKey}</span>
+              <span className="tabular-nums text-muted-foreground">
+                {p.value}
+              </span>
+            </div>
+          ))}
+      </div>
     </div>
   );
 }
@@ -469,11 +591,15 @@ function ItemsTooltip({ active, payload }: any) {
   return (
     <div
       className="rounded-lg border px-3 py-2 text-xs shadow-md"
-      style={{ background: "var(--popover)", borderColor: "var(--border)", color: "var(--popover-foreground)" }}
+      style={{
+        background: "var(--popover)",
+        borderColor: "var(--border)",
+        color: "var(--popover-foreground)",
+      }}
     >
       <p className="font-medium">{name}</p>
       <p className="text-muted-foreground">
-        {formatNumber(totalItems)} {totalItems === 1 ? "item" : "itens"}
+        {formatNumber(totalItems)} {totalItems === 1 ? "pedido" : "pedidos"}
       </p>
     </div>
   );
@@ -486,7 +612,11 @@ function PieTooltip({ active, payload }: any) {
   return (
     <div
       className="rounded-lg border px-3 py-2 text-xs shadow-md"
-      style={{ background: "var(--popover)", borderColor: "var(--border)", color: "var(--popover-foreground)" }}
+      style={{
+        background: "var(--popover)",
+        borderColor: "var(--border)",
+        color: "var(--popover-foreground)",
+      }}
     >
       <p className="font-medium">{unitName}</p>
       <p className="text-muted-foreground">
