@@ -26,6 +26,7 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { ContactsManager } from "@/components/shared/contacts-manager";
+import { ProductTags } from "@/components/shared/product-tags";
 import { ClientDialog } from "@/components/clients/client-dialog";
 import { UnitDialog } from "@/components/clients/unit-dialog";
 import { formatDate, formatNumber, padBatchNumber } from "@/lib/format";
@@ -153,7 +154,7 @@ export default function ClientDetailPage() {
 
       {/* content */}
       {tab === "orders" && (
-        <OrdersTab clientId={clientId} units={client.units} />
+        <OrdersTab clientId={clientId} />
       )}
       {tab === "stats" && <StatsTab clientId={clientId} />}
     </div>
@@ -162,27 +163,22 @@ export default function ClientDetailPage() {
 
 /* ==================== ORDERS TAB ==================== */
 
-function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
-  const { data, fetchNextPage, isFetchingNextPage, hasNextPage } = useOrders(
-    {},
+function OrdersTab({ clientId }: { clientId: number }) {
+  const { data, status, fetchNextPage, isFetchingNextPage, hasNextPage } =
+    useOrders({ clientId });
+
+  const orders = useMemo(
+    () => data?.pages.flatMap((p) => p.edges.map((e) => e.node)) ?? [],
+    [data],
   );
-
-  const unitIdSet = useMemo(() => new Set(units.map((u) => u.id)), [units]);
-
-  const orders = useMemo(() => {
-    const all = data?.pages.flatMap((p) => p.edges.map((e) => e.node)) ?? [];
-    return all.filter(
-      (o) => o.clientUnitId !== null && unitIdSet.has(o.clientUnitId),
-    );
-  }, [data, unitIdSet]);
 
   const columns: DataTableColumn<OrderListItem>[] = [
     {
       header: "Unidade",
-      cell: (o) => {
-        const unit = units.find((u) => u.id === o.clientUnitId);
-        return <span className="font-medium">{unit?.name ?? "—"}</span>;
-      },
+      className: "w-32",
+      cell: (o) => (
+        <span className="font-medium">{o.unitName ?? "—"}</span>
+      ),
     },
     {
       header: "Lote",
@@ -190,6 +186,15 @@ function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
       cell: (o) => (
         <span className="tabular-nums text-muted-foreground">
           {padBatchNumber(o.batch.number)}
+        </span>
+      ),
+    },
+    {
+      header: "Criado em",
+      className: "w-32 text-center",
+      cell: (o) => (
+        <span className="tabular-nums text-muted-foreground">
+          {formatDate(o.createdAt)}
         </span>
       ),
     },
@@ -204,27 +209,13 @@ function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
     },
     {
       header: "Itens",
-      cell: (o) => (
-        <Badge variant="secondary" className="font-normal">
-          {o.items.length}
-        </Badge>
-      ),
-    },
-    {
-      header: "Status",
-      className: "w-24 text-center",
-      cell: (o) =>
-        o.status === "cancelled" ? (
-          <Badge variant="destructive" className="font-normal">
-            cancelada
-          </Badge>
-        ) : (
-          <Badge variant="secondary" className="font-normal">
-            ativa
-          </Badge>
-        ),
+      cell: (o) => <ProductTags items={o.items} />,
     },
   ];
+
+  if (status === "pending") {
+    return <Skeleton className="h-72 rounded-lg" />;
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -233,6 +224,7 @@ function OrdersTab({ units }: { clientId: number; units: ClientUnit[] }) {
         rows={orders}
         rowKey={(o) => String(o.id)}
         emptyText="Nenhum pedido deste cliente."
+        onRowClick={(o) => (window.location.href = `/orders/${o.id}`)}
       />
       {hasNextPage && (
         <Button

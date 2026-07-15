@@ -8,33 +8,12 @@ import { loadBatchOptions } from "@/queries/batches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
 import { AsyncCombobox, type AsyncComboboxOption } from "@/components/shared/async-combobox";
+import { ProductTags } from "@/components/shared/product-tags";
 import { formatDate, padBatchNumber } from "@/lib/format";
 import type { OrderListItem } from "@/queries/orders";
-
-/** Show up to N product chips (fewer on small screens), then a "+N" summary. */
-function ProductTags({ items }: { items: OrderListItem["items"] }) {
-  const descs = items.map((i) => i.item.description.trim());
-  const shown = descs.slice(0, 6);
-  const rest = descs.length - shown.length;
-  return (
-    <div className="flex flex-wrap items-center gap-1">
-      {shown.map((d, i) => (
-        <Badge key={`${d}-${i}`} variant="secondary" className="font-normal">
-          {d}
-        </Badge>
-      ))}
-      {rest > 0 && (
-        <span className="text-xs text-muted-foreground">
-          +{rest} {rest === 1 ? "item" : "itens"}
-        </span>
-      )}
-    </div>
-  );
-}
 
 /**
  * Orders list — table view.

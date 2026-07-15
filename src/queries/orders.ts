@@ -77,6 +77,7 @@ export function useOrders(filters: {
   to?: string;
   product?: string;
   clientUnit?: number | null;
+  clientId?: number | null;
 }) {
   return useInfiniteQuery({
     queryKey: [
@@ -87,6 +88,7 @@ export function useOrders(filters: {
       filters.to ?? null,
       filters.product ?? null,
       filters.clientUnit ?? null,
+      filters.clientId ?? null,
     ],
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams();
@@ -96,6 +98,7 @@ export function useOrders(filters: {
       if (filters.to) params.set("to", filters.to);
       if (filters.product) params.set("product", filters.product);
       if (filters.clientUnit) params.set("clientUnit", String(filters.clientUnit));
+      if (filters.clientId) params.set("clientId", String(filters.clientId));
       if (pageParam) params.set("afterCursor", pageParam);
       return apiFetch<Paginated<OrderListItem>>(`/api/orders?${params}`);
     },

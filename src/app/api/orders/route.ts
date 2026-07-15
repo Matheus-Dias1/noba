@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
 
   try {
-    const { afterCursor, batch, client, from, to, product, clientUnit } =
+    const { afterCursor, batch, client, from, to, product, clientUnit, clientId } =
       Object.fromEntries(req.nextUrl.searchParams);
 
     const conds: SQL[] = [not(orders.archived)];
@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
       const clientCond = or(ilike(clients.name, `%${client}%`), ilike(clientUnits.name, `%${client}%`));
       if (clientCond) conds.push(clientCond);
     }
+    // filter by specific client (company) id
+    if (clientId) conds.push(eq(clients.id, Number(clientId)));
     // filter by specific client unit id
     if (clientUnit) conds.push(eq(clientUnits.id, Number(clientUnit)));
     // filter by product description — order must contain a matching item
