@@ -15,15 +15,15 @@ import { AsyncCombobox, type AsyncComboboxOption } from "@/components/shared/asy
 import { formatDate, padBatchNumber } from "@/lib/format";
 import type { OrderListItem } from "@/queries/orders";
 
-/** Show up to 10 product chips, then a "+N" summary chip for the rest. */
+/** Show up to N product chips (fewer on small screens), then a "+N" summary. */
 function ProductTags({ items }: { items: OrderListItem["items"] }) {
   const descs = items.map((i) => i.item.description.trim());
-  const shown = descs.slice(0, 10);
+  const shown = descs.slice(0, 6);
   const rest = descs.length - shown.length;
   return (
     <div className="flex flex-wrap items-center gap-1">
-      {shown.map((d) => (
-        <Badge key={d} variant="secondary" className="font-normal">
+      {shown.map((d, i) => (
+        <Badge key={`${d}-${i}`} variant="secondary" className="font-normal">
           {d}
         </Badge>
       ))}
@@ -37,21 +37,26 @@ function ProductTags({ items }: { items: OrderListItem["items"] }) {
 }
 
 /**
- * Orders list — table view (replaces the original card grid).
+ * Orders list — table view.
  *
- * Filters: batch picker, client text, and deliverAt date range (from/to).
- * Columns: client, batch, created, delivery, items (tags, max 10 + truncate).
+ * Filters: batch picker, client text, unit picker, product text, and deliverAt
+ * date range (from/to).
+ * Columns: client, unit, batch, created, delivery, items (tags).
  * Clicking a row opens the order editor.
  */
 export default function OrdersPage() {
   const [batchFilter, setBatchFilter] = useState<AsyncComboboxOption<string> | null>(null);
   const [clientFilter, setClientFilter] = useState("");
+  const [unitFilter, setUnitFilter] = useState<AsyncComboboxOption<string> | null>(null);
+  const [productFilter, setProductFilter] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
   const { data, status, fetchNextPage, isFetching, isFetchingNextPage, hasNextPage } = useOrders({
     batch: batchFilter?.value,
-    client: clientFilter,
+    client: clientFilter.trim() || undefined,
+    clientUnit: unitFilter ? Number(unitFilter.value) : null,
+    product: productFilter.trim() || undefined,
     from: from || undefined,
     to: to || undefined,
   });
@@ -61,12 +66,23 @@ export default function OrdersPage() {
     [data],
   );
 
-  const hasFilters = batchFilter || clientFilter || from || to;
+  const hasFilters = batchFilter || clientFilter || unitFilter || productFilter || from || to;
 
   const columns: DataTableColumn<OrderListItem>[] = [
     {
       header: "Cliente",
-      cell: (o) => <span className="font-medium">{o.client}</span>,
+      cell: (o) => (
+        <span className="font-medium">
+          {o.clientName ?? o.client}
+        </span>
+      ),
+    },
+    {
+      header: "Unidade",
+      className: "w-32",
+      cell: (o) => (
+        <span className="text-muted-foreground">{o.unitName ?? "—"}</span>
+      ),
     },
     {
       header: "Lote",
@@ -98,6 +114,8 @@ export default function OrdersPage() {
   const clearFilters = () => {
     setBatchFilter(null);
     setClientFilter("");
+    setUnitFilter(null);
+    setProductFilter("");
     setFrom("");
     setTo("");
   };
@@ -115,9 +133,9 @@ export default function OrdersPage() {
         </Button>
       </div>
 
-      {/* filters — one row, wrapping only when space runs out */}
+      {/* filters */}
       <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-[200px] flex-1 space-y-1.5">
+        <div className="min-w-[180px] flex-1 space-y-1.5">
           <Label className="text-xs text-muted-foreground">Lote</Label>
           <AsyncCombobox
             loadOptions={loadBatchOptions}
@@ -127,14 +145,41 @@ export default function OrdersPage() {
             emptyText="Nenhum lote"
           />
         </div>
-        <div className="min-w-[200px] flex-1 space-y-1.5">
+        <div className="min-w-[180px] flex-1 space-y-1.5">
           <Label className="text-xs text-muted-foreground">Cliente</Label>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={clientFilter}
               onChange={(e) => setClientFilter(e.target.value)}
-              placeholder="Filtrar por cliente"
+              placeholder="Nome do cliente"
+              className="pl-8"
+            />
+          </div>
+        </div>
+        <div className="min-w-[180px] flex-1 space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Unidade</Label>
+          <AsyncCombobox
+            loadOptions={async (search) => {
+              const { loadClientUnitOptions } = await import("@/queries/clients");
+              return loadClientUnitOptions(
+                clientFilter ? clientFilter : search,
+              );
+            }}
+            value={unitFilter}
+            onChange={setUnitFilter}
+            placeholder="Todas as unidades"
+            emptyText="Nenhuma unidade"
+          />
+        </div>
+        <div className="min-w-[180px] flex-1 space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Produto</Label>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={productFilter}
+              onChange={(e) => setProductFilter(e.target.value)}
+              placeholder="Nome do produto"
               className="pl-8"
             />
           </div>

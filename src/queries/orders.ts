@@ -41,6 +41,8 @@ export interface DetailOrderItem {
 export interface OrderListItem {
   id: string;
   client: string;
+  clientName: string | null;
+  unitName: string | null;
   observation: string | null;
   createdAt: string;
   deliverAt: string;
@@ -65,21 +67,26 @@ export interface OrderDetail extends Omit<OrderListItem, "items" | "batch"> {
 
 /**
  * useOrders — paginated, filterable order list (newest first).
- * Filters: `batch` (id), `client` (text), `from`/`to` (deliverAt range). All optional.
+ * Filters: `batch` (id), `client` (text), `from`/`to` (deliverAt range),
+ * `product` (text), `clientUnit` (unit id). All optional.
  */
 export function useOrders(filters: {
   batch?: string | null;
   client?: string;
   from?: string;
   to?: string;
+  product?: string;
+  clientUnit?: number | null;
 }) {
   return useInfiniteQuery({
     queryKey: [
       "orders",
       filters.batch ?? null,
-      filters.client,
+      filters.client ?? null,
       filters.from ?? null,
       filters.to ?? null,
+      filters.product ?? null,
+      filters.clientUnit ?? null,
     ],
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams();
@@ -87,6 +94,8 @@ export function useOrders(filters: {
       if (filters.client) params.set("client", filters.client);
       if (filters.from) params.set("from", filters.from);
       if (filters.to) params.set("to", filters.to);
+      if (filters.product) params.set("product", filters.product);
+      if (filters.clientUnit) params.set("clientUnit", String(filters.clientUnit));
       if (pageParam) params.set("afterCursor", pageParam);
       return apiFetch<Paginated<OrderListItem>>(`/api/orders?${params}`);
     },

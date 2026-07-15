@@ -25,9 +25,8 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
 
   try {
-    const { afterCursor, batch, client, from, to } = Object.fromEntries(
-      req.nextUrl.searchParams,
-    );
+    const { afterCursor, batch, client, from, to, product, clientUnit } =
+      Object.fromEntries(req.nextUrl.searchParams);
 
     const conds: SQL[] = [not(orders.archived)];
     if (batch) conds.push(eq(orders.batchId, Number(batch)));
@@ -37,6 +36,18 @@ export async function GET(req: NextRequest) {
     if (client) {
       const clientCond = or(ilike(clients.name, `%${client}%`), ilike(clientUnits.name, `%${client}%`));
       if (clientCond) conds.push(clientCond);
+    }
+    // filter by specific client unit id
+    if (clientUnit) conds.push(eq(clientUnits.id, Number(clientUnit)));
+    // filter by product description — order must contain a matching item
+    if (product) {
+      conds.push(
+        sql`${orders.id} IN (
+          SELECT oi.order_id FROM ${orderItems} oi
+          JOIN ${products} p ON p.id = oi.product_id
+          WHERE p.description ILIKE ${"%" + product + "%"}
+        )`,
+      );
     }
     if (afterCursor) conds.push(lt(orders.id, decodeCursor(afterCursor)));
 
@@ -92,7 +103,9 @@ export async function GET(req: NextRequest) {
 
     const nodes = trimmed.map((r) => ({
       id: r.id,
-      client: r.clientSnapshot ?? (r.clientName ? `${r.clientName}${r.clientUnitName ? " - " + r.clientUnitName : ""}` : ""),
+      client: r.clientSnapshot ?? (r.clientName ?? ""),
+      clientName: r.clientName ?? null,
+      unitName: r.clientUnitName ?? null,
       observation: r.observation,
       createdAt: r.createdAt,
       deliverAt: r.deliverAt,
