@@ -36,7 +36,15 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [visibleCount, setVisibleCount] = useState(10);
   const { data: clients, status, isFetching } = useClients(search);
+
+  // Reset pagination when search changes
+  const [lastSearch, setLastSearch] = useState("");
+  if (search !== lastSearch) {
+    setLastSearch(search);
+    setVisibleCount(10);
+  }
 
   const toggle = (id: number) =>
     setExpanded((prev) => {
@@ -45,6 +53,9 @@ export default function ClientsPage() {
       else next.add(id);
       return next;
     });
+
+  const visible = (clients ?? []).slice(0, visibleCount);
+  const hasMore = clients ? visibleCount < clients.length : false;
 
   return (
     <div className="flex flex-col gap-6 p-6 md:p-8">
@@ -90,16 +101,27 @@ export default function ClientsPage() {
           {isFetching ? "Carregando..." : "Nenhum cliente encontrado."}
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {clients.map((client) => (
-            <ClientRow
-              key={client.id}
-              client={client}
-              open={expanded.has(client.id)}
-              onToggle={() => toggle(client.id)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="flex flex-col gap-2">
+            {visible.map((client) => (
+              <ClientRow
+                key={client.id}
+                client={client}
+                open={expanded.has(client.id)}
+                onToggle={() => toggle(client.id)}
+              />
+            ))}
+          </div>
+          {hasMore && (
+            <Button
+              variant="outline"
+              className="w-fit self-center"
+              onClick={() => setVisibleCount((c) => c + 10)}
+            >
+              Carregar mais ({clients.length - visibleCount} restantes)
+            </Button>
+          )}
+        </>
       )}
     </div>
   );
@@ -143,13 +165,6 @@ function ClientRow({
                 {contactCount} {contactCount === 1 ? "contato" : "contatos"}
               </Badge>
             )}
-            <Link
-              href={`/clients/${client.id}`}
-              className="rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Ver detalhes →
-            </Link>
             <ChevronDown
               className={cn(
                 "size-4 text-muted-foreground transition-transform",
@@ -220,6 +235,14 @@ function ClientRow({
                 Nenhuma unidade cadastrada.
               </p>
             )}
+            <div className="flex justify-end pt-1">
+              <Link
+                href={`/clients/${client.id}`}
+                className="rounded-md px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+              >
+                Ver detalhes →
+              </Link>
+            </div>
           </div>
         </CollapsibleContent>
       </Card>
