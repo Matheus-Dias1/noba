@@ -1,105 +1,121 @@
 # Oba Green
 
-Gerenciador de pedidos Oba — rewrite of the original Electron + Express + MongoDB
-app as a single full-stack **Next.js (App Router)** application, optionally wrapped
-in a **Tauri 2** desktop shell.
+Oba Green is a work-in-progress rewrite of an internal order-management application for a food distribution business. The product UI and domain language are in Portuguese; the code and technical documentation are in English.
 
-See [`PAGES_EXTRACTION.md`](./PAGES_EXTRACTION.md) for the full page-by-page spec
-this rewrite is based on.
+The repository also contains `order_ai/`, the prototype for an AI-assisted order-ingestion feature. It is not connected to the web application yet.
 
-## Stack
+## Product areas
 
-- **Next.js 16** (App Router, Turbopack), **React 19**, **TypeScript**
-- **Tailwind v4** + **shadcn/ui** (green oklch theme, light + dark)
-- **TanStack Query** (server state) + **TanStack Form** (native-input forms, full Tab navigation)
-- **MongoDB + Mongoose** (kept from the original; a Postgres migration is planned later)
-- **exceljs** for Excel export
-- **Tauri 2** desktop wrapper (loads the deployed web app)
-- Package manager: **pnpm**
+- **Lotes:** create batches, review aggregated order totals, filter included orders, and export Excel reports.
+- **Pedidos:** create and edit orders by client unit, batch, delivery date, product, measurement unit, and processing option.
+- **Produtos:** manage the catalog, unit conversions, processing options, and supplier relationships.
+- **Clientes:** manage companies, delivery units, addresses, contacts, order history, and statistics.
+- **Fornecedores:** manage suppliers, contacts, and product relationships.
+- **Authentication:** admin-only sessions stored in an httpOnly cookie.
 
-## Environment
+## Architecture
 
-Copy `.env.example` to `.env.local` and fill in:
+- Next.js 16 App Router, React 19, and TypeScript
+- Tailwind CSS 4 and shadcn-based components
+- TanStack Query for server state
+- Postgres on Neon, accessed through Drizzle ORM
+- `exceljs` for Excel exports
+- Optional Tauri 2 desktop shell, intentionally deferred until the web application is mature
+- pnpm package manager
 
+The active application uses Postgres. MongoDB/Mongoose files and import scripts are residue from migrating the original application and are not part of normal runtime setup.
+
+## Repository map
+
+```text
+src/app/             Pages and API route handlers
+src/components/      Product and shared UI components
+src/db/              Drizzle client and Postgres schema
+src/queries/         Client-side query hooks
+src/compute/         Deterministic domain aggregations
+drizzle/             SQL migrations and migration metadata
+order_ai/            Disconnected AI-assisted ingestion prototype
+src-tauri/           Deferred desktop wrapper
 ```
-MONGO_USER=...
-MONGO_PASS=...
-MONGO_DB_NAME=...        # use a test DB, e.g. oba_dev — see "Database safety" below
-TOKEN_SECRET=...         # node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
 
-### Database safety
+`PAGES_EXTRACTION.md` documents the behavior of the older Oba Green application used as the rewrite reference. It is historical product input, not a complete description of the current implementation.
 
-`src/lib/db.ts` **refuses** to connect to the production database (`oba`) outside a
-production deploy unless `ALLOW_PRODUCTION_DB=1` is set. Validate against a restored
-copy instead:
+## Local setup
+
+Requirements:
+
+- Node.js compatible with Next.js 16
+- pnpm
+- A development or preview Postgres database; do not use the production database for local work
+
+Install dependencies and create the local environment file:
 
 ```bash
-# back up production (read-only)
-mongodump --uri "mongodb+srv://USER:PASS@cluster0.../oba?..." --out .db-backup
-# restore into a test database
-mongorestore --uri "mongodb+srv://USER:PASS@cluster0.../?..." --nsFrom "oba.*" --nsTo "oba_dev.*" --drop .db-backup
+pnpm install
+cp .env.example .env.local
 ```
 
-Then set `MONGO_DB_NAME=oba_dev`. `.db-backup/` is gitignored.
+Set these values in `.env.local`:
 
-## Scripts
+```dotenv
+DATABASE_URL=postgresql://...
+DATABASE_URL_DIRECT=postgresql://...
+TOKEN_SECRET=...
+```
+
+- `DATABASE_URL` is the pooled Neon connection used by the application.
+- `DATABASE_URL_DIRECT` is the direct connection used by Drizzle Kit for DDL. If omitted, Drizzle falls back to `DATABASE_URL`.
+- `TOKEN_SECRET` signs the 24-hour session JWT. Generate a local value with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+
+Apply committed migrations, then start the application:
 
 ```bash
-pnpm dev          # Next dev server (http://localhost:3000)
-pnpm build        # production build
-pnpm start        # serve the production build
-pnpm lint         # eslint
-pnpm tauri:dev    # run the desktop app against the dev server
-pnpm tauri:build  # build the desktop app (loads the deployed URL)
+pnpm exec drizzle-kit migrate
+pnpm dev
 ```
 
-## Deployment (Vercel)
+Open `http://localhost:3000`.
 
-The app deploys to Vercel from the `main` branch (auto-deploy on push). Required
-production environment variables (Settings → Environment Variables, all envs):
+## Development commands
 
-| Name | Value |
-| --- | --- |
-| `MONGO_USER` | MongoDB user with read/write on the target DB |
-| `MONGO_PASS` | that user's password |
-| `MONGO_DB_NAME` | `oba` for production (use `oba_dev` for a preview/staging deploy) |
-| `TOKEN_SECRET` | a 32-byte hex secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+```bash
+pnpm dev          # development server
+pnpm build        # production build and TypeScript validation
+pnpm start        # serve a production build
+pnpm lint         # ESLint
+pnpm tauri:dev    # deferred desktop development workflow
+pnpm tauri:build  # deferred desktop packaging workflow
+```
 
-Vercel sets `NODE_ENV=production`, which **bypasses** the `db.ts` guard that
-blocks the production DB outside production — so `MONGO_DB_NAME=oba` works there.
-Locally, keep `MONGO_DB_NAME=oba_dev`.
+## Database changes
 
-## Auth
+Edit the schema under `src/db/schema/`, generate a migration, review the generated SQL, and apply it to a non-production database:
 
-Sessions are JWT in an **httpOnly cookie** (`oba_session`), 24h expiry. Login is
-admin-only. Routes are protected by `src/proxy.ts` (Next 16's renamed middleware)
-at the edge, plus a server-side guard in the `(app)` layout.
+```bash
+pnpm exec drizzle-kit generate
+pnpm exec drizzle-kit migrate
+```
 
-## Tauri (desktop)
+Production-derived datasets and one-off migration artifacts are intentionally excluded from Git. They are not needed to run Oba Green.
 
-The desktop shell wraps the **deployed** web app — it loads a URL rather than
-bundling the frontend, so the full Next.js stack (SSR, API routes) stays intact.
+## Authentication
 
-- **Dev:** `pnpm tauri:dev` — starts `pnpm dev` and points the window at
-  `http://localhost:3000`.
-- **Production:** set `build.frontendDist` in `src-tauri/tauri.conf.json` to your
-  deployed URL (currently a `https://CHANGE_ME...` placeholder), then
-  `pnpm tauri:build`.
+Sessions are JWTs stored in the `oba_session` httpOnly cookie with a 24-hour expiry. Login is admin-only. `src/proxy.ts` protects application and API routes, with a second server-side guard in the authenticated layout.
 
-Window defaults match the original Electron app: 1100×700, same minimums,
-centered.
+Newly registered users are not administrators by default. There is currently no in-app administrator-management interface.
 
-## Notes on the port
+## Deployment
 
-This is a **faithful 1:1 behavioral port** of the original. Known bugs are
-intentionally carried over (see `PAGES_EXTRACTION.md` §10) so old-vs-new can be
-diffed cleanly; they'll be fixed in a dedicated pass after validation.
+An earlier rewrite version is deployed on Vercel. Do not assume it matches the current local branch or database schema; verify the target project, branch, environment variables, and migrations before deploying current work.
 
-Intentional changes vs. the original:
-- httpOnly-cookie auth (was localStorage + Bearer header)
-- real URL routing (was state-based navigation)
-- dropped the unused CASL dependency
-- working order filters (batch + client) — the original's `?search=` filter never matched
-- `_id` → `id` normalization on the wire (the original sent raw `_id`)
-- shadcn look & feel (UI tweaks approved up front)
+The active Vercel runtime requires `DATABASE_URL` and `TOKEN_SECRET`. Configure `DATABASE_URL_DIRECT` only where migration tooling runs; application requests do not use it directly.
+
+## Tauri status
+
+The Tauri wrapper is intentionally deferred until the web application is mature. Its production URL remains a placeholder, so `pnpm tauri:build` is not a release-ready workflow yet.
+
+## AI-assisted ingestion
+
+The nested [`order_ai/`](./order_ai/) package explores deterministic-first ingestion of email bodies and spreadsheet attachments, using an LLM only for ambiguous layout and context. It is not wired into the active order APIs or Postgres entities.
+
+The integration boundary is still a proposed decision; see [ADR-003 in the Obsidian project vault](obsidian://open?vault=Documents&file=Projects%2FOrder%20AI%2FADRs%2FADR-003-ai-importer-boundary).

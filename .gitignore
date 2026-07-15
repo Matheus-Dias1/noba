@@ -32,6 +32,15 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# Raw customer emails contain confidential order and contact data.
+/order_ai/dataset/raw/
+
+# Production-derived client/product catalogs and migration artifacts are private.
+/order_ai/dataset/clients.json
+/order_ai/dataset/products.json
+/scripts/
 
 # local database backups (contains a copy of production data + is tied to creds)
 .db-backup/
