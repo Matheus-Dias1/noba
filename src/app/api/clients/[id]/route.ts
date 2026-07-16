@@ -5,6 +5,7 @@ import { clients } from "@/db/schema/clients";
 import { clientUnits } from "@/db/schema/client-units";
 import { contacts } from "@/db/schema/contacts";
 import { requireSession } from "@/lib/auth";
+import { isValidCnpj } from "@/lib/brazilian-documents";
 
 /** GET /api/clients/:id — single client with units + contacts. */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -59,6 +60,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     };
 
     const patch: Record<string, unknown> = {};
+    if (cnpj !== undefined && !isValidCnpj(cnpj)) {
+      return NextResponse.json({ error: "INVALID_CNPJ" }, { status: 400 });
+    }
     if (name) patch.name = name.toUpperCase();
     if (legalName !== undefined) patch.legalName = legalName;
     if (cnpj !== undefined) patch.cnpj = cnpj;

@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, ilike, inArray, not } from "drizzle-orm";
+import { and, ilike, inArray, not, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients } from "@/db/schema/clients";
 import { clientUnits } from "@/db/schema/client-units";
 import { contacts } from "@/db/schema/contacts";
 import { requireSession } from "@/lib/auth";
+import { isValidCnpj } from "@/lib/brazilian-documents";
 
 /**
  * GET /api/clients — paginated list of non-archived clients, with their units
@@ -69,8 +70,8 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/clients — create a new client (with optional units).
- * Body: { name, legalName?, cnpj?, units?: [{ name, ...address }] }
+ * POST /api/clients — atomically create a client and its required units.
+ * Body: { name, legalName?, cnpj?, units: [{ name, cnpj?, ...address }] }
  */
 export async function POST(req: NextRequest) {
   const guard = await requireSession();
@@ -81,29 +82,62 @@ export async function POST(req: NextRequest) {
       name?: string;
       legalName?: string;
       cnpj?: string;
-      units?: { name: string; street?: string; city?: string; state?: string }[];
+      units?: {
+        name?: string;
+        cnpj?: string;
+        street?: string;
+        number?: string;
+        neighborhood?: string;
+        city?: string;
+        state?: string;
+        zip?: string;
+        complement?: string;
+      }[];
     };
 
-    if (!name) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
-
-    const [created] = await db
-      .insert(clients)
-      .values({ name: name.toUpperCase(), legalName, cnpj, archived: false })
-      .returning({ id: clients.id });
-
-    if (unitRows && unitRows.length > 0) {
-      await db.insert(clientUnits).values(
-        unitRows.map((u) => ({
-          clientId: created.id,
-          name: u.name.toUpperCase(),
-          street: u.street,
-          city: u.city,
-          state: u.state,
-        })),
-      );
+    if (
+      !name?.trim() ||
+      !cnpj ||
+      !isValidCnpj(cnpj) ||
+      !unitRows?.length ||
+      unitRows.some((unit) => !unit.name?.trim() || !unit.cnpj || !isValidCnpj(unit.cnpj))
+    ) {
+      return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
     }
 
-    return NextResponse.json({ id: String(created.id) }, { status: 201 });
+    // Allocate the serial id first so both inserts can be sent in Neon's atomic
+    // HTTP batch. A failed batch may leave a harmless sequence gap, never a
+    // client without its units.
+    const idResult = await db.execute<{ id: number }>(
+      sql`select nextval(pg_get_serial_sequence('clients', 'id'))::int as id`,
+    );
+    const id = idResult.rows[0].id;
+
+    await db.batch([
+      db.insert(clients).values({
+        id,
+        name: name.trim().toUpperCase(),
+        legalName,
+        cnpj,
+        archived: false,
+      }),
+      db.insert(clientUnits).values(
+        unitRows.map((u) => ({
+          clientId: id,
+          name: u.name!.trim().toUpperCase(),
+          cnpj: u.cnpj?.trim() || null,
+          street: u.street?.trim() || null,
+          number: u.number?.trim() || null,
+          neighborhood: u.neighborhood?.trim() || null,
+          city: u.city?.trim() || null,
+          state: u.state?.trim() || null,
+          zip: u.zip?.trim() || null,
+          complement: u.complement?.trim() || null,
+        })),
+      ),
+    ]);
+
+    return NextResponse.json({ id: String(id) }, { status: 201 });
   } catch (err: unknown) {
     const e = err as { code?: string };
     if (e.code === "23505") {

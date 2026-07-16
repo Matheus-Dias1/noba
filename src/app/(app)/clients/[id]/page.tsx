@@ -315,7 +315,7 @@ function StatsTab({ clientId }: { clientId: number }) {
         {stats.ordersByUnit.length > 1 && (
           <Card className="p-4 lg:w-72">
             <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Por unidade
+              Pedidos por unidade
             </h3>
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
@@ -517,6 +517,9 @@ function UnitsSection({
             <Badge variant="outline" className="font-medium">
               {unit.name}
             </Badge>
+            {unit.cnpj && (
+              <span className="text-sm text-muted-foreground">CNPJ: {unit.cnpj}</span>
+            )}
             {[unit.street, unit.city, unit.state]
               .filter(Boolean)
               .join(", ") && (

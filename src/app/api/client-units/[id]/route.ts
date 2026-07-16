@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clientUnits } from "@/db/schema/client-units";
 import { requireSession } from "@/lib/auth";
+import { isValidCnpj } from "@/lib/brazilian-documents";
 
 /** PUT /api/client-units/:id — update a unit's fields. */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +17,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const body = (await req.json()) as {
       name?: string;
+      cnpj?: string;
       street?: string;
       number?: string;
       neighborhood?: string;
@@ -26,8 +28,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     };
 
     const patch: Record<string, unknown> = {};
+    if (body.cnpj !== undefined && !isValidCnpj(body.cnpj)) {
+      return NextResponse.json({ error: "INVALID_CNPJ" }, { status: 400 });
+    }
     if (body.name) patch.name = body.name.toUpperCase();
-    for (const f of ["street", "number", "neighborhood", "city", "state", "zip", "complement"] as const) {
+    for (const f of ["cnpj", "street", "number", "neighborhood", "city", "state", "zip", "complement"] as const) {
       if (body[f] !== undefined) patch[f] = body[f];
     }
 

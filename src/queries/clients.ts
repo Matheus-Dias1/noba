@@ -16,6 +16,7 @@ export interface ClientUnit {
   id: number;
   clientId: number;
   name: string;
+  cnpj: string | null;
   street: string | null;
   number: string | null;
   neighborhood: string | null;
@@ -61,16 +62,31 @@ export function useClient(id: number | undefined) {
 export function useSaveClient() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       id,
       data,
     }: {
       id?: number;
-      data: { name: string; legalName?: string; cnpj?: string };
-    }) =>
+      data: {
+        name: string;
+        legalName?: string;
+        cnpj?: string;
+        units?: {
+          name: string;
+          cnpj?: string;
+          street?: string;
+          number?: string;
+          neighborhood?: string;
+          city?: string;
+          state?: string;
+          zip?: string;
+          complement?: string;
+        }[];
+      };
+    }): Promise<{ ok: true } | { id: string }> =>
       id
-        ? apiFetch(`/api/clients/${id}`, { method: "PUT", body: data })
-        : apiFetch("/api/clients", { method: "POST", body: data }),
+        ? await apiFetch<{ ok: true }>(`/api/clients/${id}`, { method: "PUT", body: data })
+        : await apiFetch<{ id: string }>("/api/clients", { method: "POST", body: data }),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: ["clients"] });
       if (id) qc.invalidateQueries({ queryKey: ["client", id] });
@@ -85,6 +101,7 @@ export function useSaveUnit() {
     mutationFn: (data: {
       clientId: number;
       name: string;
+      cnpj?: string;
       street?: string;
       city?: string;
       state?: string;
@@ -104,6 +121,7 @@ export function useUpdateUnit() {
       id: number;
       data: {
         name?: string;
+        cnpj?: string;
         street?: string;
         number?: string;
         neighborhood?: string;

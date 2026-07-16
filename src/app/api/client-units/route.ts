@@ -2,10 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/db/client";
 import { clientUnits } from "@/db/schema/client-units";
 import { requireSession } from "@/lib/auth";
+import { isValidCnpj } from "@/lib/brazilian-documents";
 
 /**
  * POST /api/client-units — create a unit under a client.
- * Body: { clientId, name, street?, number?, neighborhood?, city?, state?, zip?, complement? }
+ * Body: { clientId, name, cnpj?, street?, number?, neighborhood?, city?, state?, zip?, complement? }
  */
 export async function POST(req: NextRequest) {
   const guard = await requireSession();
@@ -15,6 +16,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as {
       clientId: number;
       name?: string;
+      cnpj?: string;
       street?: string;
       number?: string;
       neighborhood?: string;
@@ -24,7 +26,7 @@ export async function POST(req: NextRequest) {
       complement?: string;
     };
 
-    if (!body.clientId || !body.name) {
+    if (!body.clientId || !body.name || !body.cnpj || !isValidCnpj(body.cnpj)) {
       return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
     }
 
@@ -33,6 +35,7 @@ export async function POST(req: NextRequest) {
       .values({
         clientId: body.clientId,
         name: body.name.toUpperCase(),
+        cnpj: body.cnpj,
         street: body.street,
         number: body.number,
         neighborhood: body.neighborhood,

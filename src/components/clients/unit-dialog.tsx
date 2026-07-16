@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useUpdateUnit } from "@/queries/clients";
+import { formatCep, formatCnpj, isValidCnpj } from "@/lib/brazilian-documents";
 
 /**
  * Unit edit dialog — edits a client unit's name and address fields.
@@ -30,6 +31,7 @@ export function UnitDialog({
   unit?: {
     id: number;
     name: string;
+    cnpj: string | null;
     street: string | null;
     number: string | null;
     neighborhood: string | null;
@@ -52,22 +54,25 @@ type EditableUnit = NonNullable<Parameters<typeof UnitDialog>[0]["unit"]>;
 
 function UnitDialogForm({ unit, onClose }: { unit: EditableUnit; onClose: () => void }) {
   const [name, setName] = useState(unit.name);
+  const [cnpj, setCnpj] = useState(formatCnpj(unit.cnpj ?? ""));
   const [street, setStreet] = useState(unit.street ?? "");
   const [number, setNumber] = useState(unit.number ?? "");
   const [neighborhood, setNeighborhood] = useState(unit.neighborhood ?? "");
   const [city, setCity] = useState(unit.city ?? "");
   const [state, setState] = useState(unit.state ?? "");
-  const [zip, setZip] = useState(unit.zip ?? "");
+  const [zip, setZip] = useState(formatCep(unit.zip ?? ""));
   const [complement, setComplement] = useState(unit.complement ?? "");
   const update = useUpdateUnit();
+  const cnpjValid = isValidCnpj(cnpj);
 
   const handleSubmit = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !cnpjValid) return;
     try {
       await update.mutateAsync({
         id: unit.id,
         data: {
           name: name.trim(),
+          cnpj: cnpj.trim(),
           street: street.trim() || undefined,
           number: number.trim() || undefined,
           neighborhood: neighborhood.trim() || undefined,
@@ -107,13 +112,27 @@ function UnitDialogForm({ unit, onClose }: { unit: EditableUnit; onClose: () => 
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <Label htmlFor="unit-cnpj">CNPJ *</Label>
+                <Input
+                  id="unit-cnpj"
+                  value={cnpj}
+                  onChange={(e) => setCnpj(formatCnpj(e.target.value))}
+                  placeholder="00.000.000/0001-00"
+                  aria-invalid={cnpj.length > 0 && !cnpjValid}
+                />
+                {cnpj.length > 0 && !cnpjValid && (
+                  <p className="text-xs text-destructive">CNPJ inválido.</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="unit-zip">CEP</Label>
                   <Input
                     id="unit-zip"
                     value={zip}
-                    onChange={(e) => setZip(e.target.value)}
+                    onChange={(e) => setZip(formatCep(e.target.value))}
                     placeholder="00000-000"
                   />
                 </div>
@@ -190,7 +209,7 @@ function UnitDialogForm({ unit, onClose }: { unit: EditableUnit; onClose: () => 
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!name.trim() || update.isPending}
+                disabled={!name.trim() || !cnpjValid || update.isPending}
               >
                 {update.isPending && (
                   <Loader2 className="size-4 animate-spin" />
