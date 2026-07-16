@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Plus, X } from "lucide-react";
+import { Filter, Plus, X } from "lucide-react";
 import { useOrders } from "@/queries/orders";
 import { loadBatchOptions, loadProductOptions, type ProductPickerOption } from "@/queries/batches";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ export default function OrdersPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const clientSelectionSequence = useRef(0);
 
   const { data, status, isFetching } = useOrders({
@@ -111,13 +112,26 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Pedidos</h1>
           <p className="text-sm text-muted-foreground">Detalhes de cada pedido</p>
         </div>
-        <Button size="icon-lg" render={<Link href="/orders/new" aria-label="Novo pedido" />}>
-          <Plus className="size-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="icon-lg"
+            variant={showMobileFilters ? "secondary" : "outline"}
+            className="md:hidden"
+            aria-label={showMobileFilters ? "Ocultar filtros" : "Mostrar filtros"}
+            aria-expanded={showMobileFilters}
+            onClick={() => setShowMobileFilters((visible) => !visible)}
+          >
+            <Filter className="size-5" />
+          </Button>
+          <Button size="icon-lg" render={<Link href="/orders/new" aria-label="Novo pedido" />}>
+            <Plus className="size-5" />
+          </Button>
+        </div>
       </div>
 
       {/* filters */}
-      <div className="flex flex-wrap items-end gap-3">
+      <div className={`${showMobileFilters ? "flex" : "hidden"} max-h-[50dvh] flex-wrap items-end gap-3 overflow-y-auto overscroll-none md:flex md:max-h-none md:overflow-visible`}>
         <div className="min-w-[180px] flex-1 space-y-1.5">
           <Label className="text-xs text-muted-foreground">Lote</Label>
           <AsyncCombobox
