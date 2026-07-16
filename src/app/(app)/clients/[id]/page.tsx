@@ -47,10 +47,28 @@ const CHART_COLORS = [
   "#9b2226",
 ];
 
-function chartColor(name: string) {
+function colorHash(value: string) {
   let hash = 0;
-  for (const character of name) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
-  return CHART_COLORS[hash % CHART_COLORS.length];
+  for (const character of value) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  return hash;
+}
+
+function shuffledChartColors(seed: string) {
+  const palette = [...CHART_COLORS];
+  let state = colorHash(seed) || 1;
+  for (let index = palette.length - 1; index > 0; index -= 1) {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    state >>>= 0;
+    const swapIndex = state % (index + 1);
+    [palette[index], palette[swapIndex]] = [palette[swapIndex], palette[index]];
+  }
+  return palette;
+}
+
+function chartColor(name: string, palette: string[]) {
+  return palette[colorHash(name) % palette.length];
 }
 
 const MONTHS_PT = [
@@ -256,6 +274,15 @@ function OrdersTab({ clientId }: { clientId: number }) {
 function StatsTab({ clientId }: { clientId: number }) {
   const { data: stats, status } = useClientStats(clientId);
   const [monthView, setMonthView] = useState<"total" | "unit">("total");
+  const chartPalettes = useMemo(
+    () => ({
+      unitPie: shuffledChartColors(`${clientId}:unit-pie`),
+      monthTotal: shuffledChartColors(`${clientId}:month-total`),
+      monthUnits: shuffledChartColors(`${clientId}:month-units`),
+      products: shuffledChartColors(`${clientId}:products`),
+    }),
+    [clientId],
+  );
 
   // Transform per-unit monthly series into stacked format: [{month, [unitName]: count}]
   const { monthByUnitData, unitNames } = useMemo(() => {
@@ -330,7 +357,7 @@ function StatsTab({ clientId }: { clientId: number }) {
                   {stats.ordersByUnit.map((unit) => (
                     <Cell
                       key={unit.unitName}
-                      fill={chartColor(unit.unitName)}
+                      fill={chartColor(unit.unitName, chartPalettes.unitPie)}
                     />
                   ))}
                 </Pie>
@@ -350,7 +377,7 @@ function StatsTab({ clientId }: { clientId: number }) {
                   <span
                     className="size-2.5 shrink-0 rounded-full"
                     style={{
-                      background: chartColor(u.unitName),
+                      background: chartColor(u.unitName, chartPalettes.unitPie),
                     }}
                   />
                   <span className="min-w-0 flex-1 truncate text-foreground">
@@ -409,7 +436,7 @@ function StatsTab({ clientId }: { clientId: number }) {
                   content={<MonthTooltip />}
                   contentStyle={TOOLTIP_STYLE}
                 />
-                <Line type="monotone" dataKey="count" stroke={CHART_COLORS[0]} strokeWidth={3} dot={{ r: 4, fill: CHART_COLORS[0] }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="count" stroke={chartPalettes.monthTotal[0]} strokeWidth={3} dot={{ r: 4, fill: chartPalettes.monthTotal[0] }} activeDot={{ r: 6 }} />
               </LineChart>
             ) : (
               <BarChart data={monthByUnitData}>
@@ -432,7 +459,7 @@ function StatsTab({ clientId }: { clientId: number }) {
                     key={name}
                     dataKey={name}
                     stackId="units"
-                    fill={chartColor(name)}
+                    fill={chartColor(name, chartPalettes.monthUnits)}
                     radius={
                       i === unitNames.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]
                     }
@@ -477,7 +504,7 @@ function StatsTab({ clientId }: { clientId: number }) {
               />
               <Bar dataKey="totalItems" radius={[0, 4, 4, 0]}>
                 {stats.topProducts.map((product) => (
-                  <Cell key={product.name} fill={chartColor(product.name)} />
+                  <Cell key={product.name} fill={chartColor(product.name, chartPalettes.products)} />
                 ))}
               </Bar>
             </BarChart>
