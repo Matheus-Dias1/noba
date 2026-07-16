@@ -215,7 +215,7 @@ export default function OrdersPage() {
             rowKey={(o) => o.id}
             emptyText="Nenhum pedido encontrado."
             onRowClick={(o) => (window.location.href = `/orders/${o.id}`)}
-            containerClassName="h-full overflow-auto"
+            containerClassName="h-full overflow-auto overscroll-none"
             loading={isFetching}
           />
         )}
