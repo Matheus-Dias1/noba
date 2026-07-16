@@ -16,6 +16,7 @@ import { ProductTags } from "@/components/shared/product-tags";
 import { formatDate, padBatchNumber } from "@/lib/format";
 import type { OrderListItem } from "@/queries/orders";
 import { loadClientOptions, loadUnitOptions } from "@/queries/clients";
+import { PagePagination } from "@/components/shared/page-pagination";
 
 /**
  * Orders list — table view.
@@ -32,18 +33,19 @@ export default function OrdersPage() {
   const [productFilters, setProductFilters] = useState<ProductPickerOption[]>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [page, setPage] = useState(1);
 
-  const { data, status, fetchNextPage, isFetching, isFetchingNextPage, hasNextPage } = useOrders({
+  const { data, status, isFetching } = useOrders({
     batch: batchFilter?.value,
     clientId: clientFilter ? Number(clientFilter.value) : null,
     clientUnit: unitFilter ? Number(unitFilter.value) : null,
     productIds: productFilters.map((product) => product.value),
     from: from || undefined,
     to: to || undefined,
-  });
+  }, page);
 
   const orders = useMemo(
-    () => data?.pages.flatMap((p) => p.edges.map((e) => e.node)) ?? [],
+    () => data?.edges.map((edge) => edge.node) ?? [],
     [data],
   );
 
@@ -99,6 +101,7 @@ export default function OrdersPage() {
     setProductFilters([]);
     setFrom("");
     setTo("");
+    setPage(1);
   };
 
   return (
@@ -121,7 +124,7 @@ export default function OrdersPage() {
           <AsyncCombobox
             loadOptions={loadBatchOptions}
             value={batchFilter}
-            onChange={setBatchFilter}
+            onChange={(option) => { setBatchFilter(option); setPage(1); }}
             placeholder="Filtrar por lote"
             emptyText="Nenhum lote"
           />
@@ -131,6 +134,7 @@ export default function OrdersPage() {
           <AsyncCombobox loadOptions={loadClientOptions} value={clientFilter} onChange={(option) => {
             if (option?.value !== clientFilter?.value) setUnitFilter(null);
             setClientFilter(option);
+            setPage(1);
           }} placeholder="Todos os clientes" emptyText="Nenhum cliente" />
         </div>
         {clientFilter && <div className="min-w-[180px] flex-1 space-y-1.5">
@@ -138,7 +142,7 @@ export default function OrdersPage() {
           <AsyncCombobox
             loadOptions={(search) => loadUnitOptions(Number(clientFilter.value), search)}
             value={unitFilter}
-            onChange={setUnitFilter}
+            onChange={(option) => { setUnitFilter(option); setPage(1); }}
             placeholder="Todas as unidades"
             emptyText="Nenhuma unidade"
           />
@@ -147,17 +151,17 @@ export default function OrdersPage() {
           <Label className="text-xs text-muted-foreground">Produto</Label>
           <AsyncCombobox loadOptions={loadProductOptions} value={null} onChange={(option) => {
             const product = option as ProductPickerOption | null;
-            if (product && !productFilters.some((item) => item.value === product.value)) setProductFilters((items) => [...items, product]);
+            if (product && !productFilters.some((item) => item.value === product.value)) { setProductFilters((items) => [...items, product]); setPage(1); }
           }} placeholder="Adicionar produto" emptyText="Nenhum produto" />
-          {productFilters.length > 0 && <div className="flex flex-wrap gap-1 pt-1">{productFilters.map((product) => <Badge key={product.value} variant="secondary">{product.label}<button type="button" aria-label={`Remover ${product.label}`} onClick={() => setProductFilters((items) => items.filter((item) => item.value !== product.value))}><X className="ml-1 size-3" /></button></Badge>)}</div>}
+          {productFilters.length > 0 && <div className="flex flex-wrap gap-1 pt-1">{productFilters.map((product) => <Badge key={product.value} variant="secondary">{product.label}<button type="button" aria-label={`Remover ${product.label}`} onClick={() => { setProductFilters((items) => items.filter((item) => item.value !== product.value)); setPage(1); }}><X className="ml-1 size-3" /></button></Badge>)}</div>}
         </div>
         <div className="min-w-[150px] space-y-1.5">
           <Label htmlFor="from" className="text-xs text-muted-foreground">Entrega de</Label>
-          <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Input id="from" type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
         </div>
         <div className="min-w-[150px] space-y-1.5">
           <Label htmlFor="to" className="text-xs text-muted-foreground">Entrega até</Label>
-          <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Input id="to" type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
         </div>
         {hasFilters && (
           <Button variant="ghost" size="sm" className="h-9 text-muted-foreground" onClick={clearFilters}>
@@ -179,20 +183,8 @@ export default function OrdersPage() {
         />
       )}
 
-      {/* load more */}
-      {hasNextPage && (
-        <div>
-          <Button
-            variant="outline"
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="w-fit"
-          >
-            {isFetchingNextPage ? "Carregando..." : "Carregar mais"}
-          </Button>
-        </div>
-      )}
-      {isFetching && !isFetchingNextPage && orders.length > 0 && (
+      <PagePagination page={page} totalCount={data?.totalCount ?? 0} pageSize={30} onPageChange={setPage} />
+      {isFetching && orders.length > 0 && (
         <p className="text-sm text-muted-foreground">Carregando...</p>
       )}
     </div>

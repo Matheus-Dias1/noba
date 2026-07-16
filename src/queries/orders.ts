@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useInfiniteQuery,
   useQuery,
   useMutation,
   useQueryClient,
@@ -82,8 +81,8 @@ export function useOrders(filters: {
   productIds?: string[];
   clientUnit?: number | null;
   clientId?: number | null;
-}) {
-  return useInfiniteQuery({
+}, page = 1) {
+  return useQuery({
     queryKey: [
       "orders",
       filters.batch ?? null,
@@ -94,8 +93,9 @@ export function useOrders(filters: {
       filters.productIds?.join(",") ?? null,
       filters.clientUnit ?? null,
       filters.clientId ?? null,
+      page,
     ],
-    queryFn: ({ pageParam }) => {
+    queryFn: () => {
       const params = new URLSearchParams();
       if (filters.batch) params.set("batch", filters.batch);
       if (filters.client) params.set("client", filters.client);
@@ -105,11 +105,10 @@ export function useOrders(filters: {
       if (filters.productIds?.length) params.set("products", filters.productIds.join(","));
       if (filters.clientUnit) params.set("clientUnit", String(filters.clientUnit));
       if (filters.clientId) params.set("clientId", String(filters.clientId));
-      if (pageParam) params.set("afterCursor", pageParam);
+      params.set("page", String(page));
       return apiFetch<Paginated<OrderListItem>>(`/api/orders?${params}`);
     },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.pageInfo.endCursor ?? undefined,
+    placeholderData: (previous) => previous,
   });
 }
 

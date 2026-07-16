@@ -30,6 +30,7 @@ import { UnitsContactsTable } from "@/components/clients/units-contacts-table";
 import { formatDate, formatNumber, padBatchNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OrderListItem } from "@/queries/orders";
+import { PagePagination } from "@/components/shared/page-pagination";
 
 const CHART_COLORS = [
   "#265948",
@@ -174,11 +175,11 @@ export default function ClientDetailPage() {
 /* ==================== ORDERS TAB ==================== */
 
 function OrdersTab({ clientId }: { clientId: number }) {
-  const { data, status, fetchNextPage, isFetchingNextPage, hasNextPage } =
-    useOrders({ clientId });
+  const [page, setPage] = useState(1);
+  const { data, status } = useOrders({ clientId }, page);
 
   const orders = useMemo(
-    () => data?.pages.flatMap((p) => p.edges.map((e) => e.node)) ?? [],
+    () => data?.edges.map((edge) => edge.node) ?? [],
     [data],
   );
 
@@ -236,16 +237,7 @@ function OrdersTab({ clientId }: { clientId: number }) {
         emptyText="Nenhum pedido deste cliente."
         onRowClick={(o) => (window.location.href = `/orders/${o.id}`)}
       />
-      {hasNextPage && (
-        <Button
-          variant="outline"
-          onClick={() => fetchNextPage()}
-          disabled={isFetchingNextPage}
-          className="w-fit"
-        >
-          {isFetchingNextPage ? "Carregando..." : "Carregar mais"}
-        </Button>
-      )}
+      <PagePagination page={page} totalCount={data?.totalCount ?? 0} pageSize={30} onPageChange={setPage} />
     </div>
   );
 }

@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, desc, eq, ilike, inArray, lt, not, or, sql, gte, lte, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, not, or, sql, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, orderItems } from "@/db/schema/orders";
 import { batches } from "@/db/schema/batches";
 import { products } from "@/db/schema/products";
 import { clientUnits } from "@/db/schema/client-units";
 import { clients } from "@/db/schema/clients";
-import { decodeCursor, buildPage } from "@/db/pagination";
+import { buildPage } from "@/db/pagination";
 import { requireSession } from "@/lib/auth";
 import { forceDateDay } from "@/lib/format";
 
@@ -25,8 +25,9 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
 
   try {
-    const { afterCursor, batch, client, from, to, product, products: productIds, clientUnit, clientId } =
+    const { page: pageParam, batch, client, from, to, product, products: productIds, clientUnit, clientId } =
       Object.fromEntries(req.nextUrl.searchParams);
+    const page = Math.max(1, Number(pageParam) || 1);
 
     const conds: SQL[] = [not(orders.archived)];
     if (batch) conds.push(eq(orders.batchId, Number(batch)));
@@ -59,8 +60,6 @@ export async function GET(req: NextRequest) {
         )`);
       }
     }
-    if (afterCursor) conds.push(lt(orders.id, decodeCursor(afterCursor)));
-
     // base list (joined to batch + client_unit + client for display + filtering)
     const rows = await db
       .select({
@@ -82,6 +81,7 @@ export async function GET(req: NextRequest) {
       .leftJoin(clients, eq(clients.id, clientUnits.clientId))
       .where(and(...conds))
       .orderBy(desc(orders.id))
+      .offset((page - 1) * DEFAULT_PAGE_SIZE)
       .limit(DEFAULT_PAGE_SIZE + 1);
     const hasNextPage = rows.length > DEFAULT_PAGE_SIZE;
     const trimmed = hasNextPage ? rows.slice(0, DEFAULT_PAGE_SIZE) : rows;
