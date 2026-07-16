@@ -207,17 +207,12 @@ export async function loadClientUnitOptions(
 /** Searchable client options for dependent client/unit pickers. */
 export async function loadClientOptions(
   search: string,
+  cursor?: string,
 ): Promise<LoadResult<string>> {
-  const clients = await apiFetch<Client[]>(
-    `/api/clients${search ? `?search=${encodeURIComponent(search)}` : ""}`,
-  );
-  return {
-    options: clients.map((client) => ({
-      value: String(client.id),
-      label: client.name,
-    })),
-    hasMore: false,
-  };
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  if (cursor) params.set("offset", cursor);
+  return apiFetch<LoadResult<string>>(`/api/clients/options?${params}`);
 }
 
 /** Unit options scoped to one selected client. */
