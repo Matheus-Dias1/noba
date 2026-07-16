@@ -179,25 +179,25 @@
 }
 
 .order-row-merge-out {
-  animation: order-row-merge-out 900ms ease-in forwards;
+  animation: order-row-merge-out 300ms ease-in forwards;
 }
 
 .order-row-merge-out > td {
-  animation: order-row-cell-collapse 900ms ease-in forwards;
+  animation: order-row-cell-collapse 300ms ease-in forwards;
 }
 
 .order-row-merge-out .order-merge-cell {
-  animation: order-row-content-collapse 900ms ease-in forwards;
+  animation: order-row-content-collapse 300ms ease-in forwards;
   overflow: hidden;
   transform-origin: top;
 }
 
 .order-row-merge-target {
-  animation: order-row-merge-target 1000ms ease-out;
+  animation: order-row-merge-target 2000ms ease-out;
 }
 
 .order-quantity-merge {
-  animation: order-quantity-merge 1000ms ease-out;
+  animation: order-quantity-merge 2000ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
