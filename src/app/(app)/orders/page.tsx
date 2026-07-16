@@ -132,7 +132,7 @@ export default function OrdersPage() {
       </div>
 
       {/* filters */}
-      <div className={`${showMobileFilters ? "flex" : "hidden"} max-h-[50dvh] flex-wrap items-end gap-3 overflow-y-auto overscroll-none md:flex md:max-h-none md:overflow-visible`}>
+      <div className={`${showMobileFilters ? "flex" : "max-md:hidden"} max-h-[50dvh] flex-wrap items-end gap-3 overflow-y-auto overscroll-none md:flex md:max-h-none md:overflow-visible`}>
         <div className="min-w-[180px] flex-1 space-y-1.5">
           <Label className="text-xs text-muted-foreground">Lote</Label>
           <AsyncCombobox
