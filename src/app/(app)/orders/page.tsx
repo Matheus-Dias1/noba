@@ -50,8 +50,6 @@ export default function OrdersPage() {
     [data],
   );
 
-  const hasFilters = batchFilter || clientFilter || unitFilter || productFilters.length > 0 || from || to;
-
   const columns: DataTableColumn<OrderListItem>[] = [
     {
       header: "Cliente",
@@ -106,7 +104,7 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 md:p-8">
+    <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden p-6 md:p-8">
       {/* header + add */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -201,30 +199,33 @@ export default function OrdersPage() {
           <Label htmlFor="to" className="text-xs text-muted-foreground">Entrega até</Label>
           <Input id="to" type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
         </div>
-        {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-9 text-muted-foreground" onClick={clearFilters}>
-            <X className="size-4" /> Limpar
-          </Button>
-        )}
+        <Button variant="ghost" size="sm" className="h-9 text-muted-foreground" onClick={clearFilters}>
+          <X className="size-4" /> Limpar
+        </Button>
       </div>
 
       {/* table */}
-      {status === "pending" ? (
-        <Skeleton className="h-72 rounded-lg" />
-      ) : (
-        <DataTable
-          columns={columns}
-          rows={orders}
-          rowKey={(o) => o.id}
-          emptyText="Nenhum pedido encontrado."
-          onRowClick={(o) => (window.location.href = `/orders/${o.id}`)}
-        />
-      )}
+      <div className="min-h-0 flex-1">
+        {status === "pending" ? (
+          <Skeleton className="h-full min-h-72 rounded-lg" />
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={orders}
+            rowKey={(o) => o.id}
+            emptyText="Nenhum pedido encontrado."
+            onRowClick={(o) => (window.location.href = `/orders/${o.id}`)}
+            containerClassName="h-full overflow-auto"
+          />
+        )}
+      </div>
 
-      <PagePagination page={page} totalCount={data?.totalCount ?? 0} pageSize={30} onPageChange={setPage} />
-      {isFetching && orders.length > 0 && (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
-      )}
+      <div className="shrink-0">
+        <PagePagination page={page} totalCount={data?.totalCount ?? 0} pageSize={30} onPageChange={setPage} />
+        {isFetching && orders.length > 0 && (
+          <p className="mt-2 text-sm text-muted-foreground">Carregando...</p>
+        )}
+      </div>
     </div>
   );
 }

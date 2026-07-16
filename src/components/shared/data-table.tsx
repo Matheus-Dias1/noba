@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 /**
  * Shared, consistently-styled table used by the Products and Orders list pages.
@@ -26,21 +27,23 @@ export function DataTable<T>({
   rowKey,
   emptyText = "Nenhum resultado.",
   onRowClick,
+  containerClassName,
 }: {
   columns: DataTableColumn<T>[];
   rows: T[];
   rowKey: (row: T, index: number) => string;
   emptyText?: string;
   onRowClick?: (row: T) => void;
+  containerClassName?: string;
 }) {
   if (rows.length === 0) {
     return <p className="px-1 py-6 text-sm text-muted-foreground">{emptyText}</p>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className={cn("overflow-x-auto rounded-lg border", containerClassName)}>
       <Table>
-        <TableHeader>
+        <TableHeader className="sticky top-0 z-10">
           <TableRow className="bg-muted/50 hover:bg-muted/50">
             {columns.map((col) => (
               <TableHead
