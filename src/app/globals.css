@@ -179,15 +179,15 @@
 }
 
 .order-row-merge-out {
-  animation: order-row-merge-out var(--merge-collapse-duration, 900ms) ease-in forwards;
+  animation: order-row-merge-out 900ms ease-in forwards;
 }
 
 .order-row-merge-out > td {
-  animation: order-row-cell-collapse var(--merge-collapse-duration, 900ms) ease-in forwards;
+  animation: order-row-cell-collapse 900ms ease-in forwards;
 }
 
 .order-row-merge-out .order-merge-cell {
-  animation: order-row-content-collapse var(--merge-collapse-duration, 900ms) ease-in forwards;
+  animation: order-row-content-collapse 900ms ease-in forwards;
   overflow: hidden;
   transform-origin: top;
 }

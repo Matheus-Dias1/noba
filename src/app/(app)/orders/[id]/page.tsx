@@ -646,6 +646,10 @@ function EditingRow({
   const selectedProcessingLabel = row.processingId
     ? row.product?.processings.find((processing) => processing.id === row.processingId)?.name
     : null;
+  const collapseAnimationStyle: CSSProperties | undefined =
+    mergePhase === "source-collapse"
+      ? { animationDuration: `${mergeCollapseDuration}ms` }
+      : undefined;
 
   return (
     <TableRow
@@ -656,14 +660,13 @@ function EditingRow({
             ? "order-row-merge-out"
             : undefined
       }
-      style={
-        {
-          "--merge-collapse-duration": `${mergeCollapseDuration}ms`,
-        } as CSSProperties
-      }
+      style={collapseAnimationStyle}
     >
-      <TableCell>
-        <div className="order-merge-cell grid grid-cols-3 gap-2">
+      <TableCell style={collapseAnimationStyle}>
+        <div
+          className="order-merge-cell grid grid-cols-3 gap-2"
+          style={collapseAnimationStyle}
+        >
           <div className={hasProcessings ? "col-span-2" : "col-span-3"}>
             <AsyncCombobox
               loadOptions={loadProductOptions}
@@ -699,8 +702,8 @@ function EditingRow({
           )}
         </div>
       </TableCell>
-      <TableCell>
-        <div className="order-merge-cell">
+      <TableCell style={collapseAnimationStyle}>
+        <div className="order-merge-cell" style={collapseAnimationStyle}>
           <Input
             type="number"
             inputMode="decimal"
@@ -711,8 +714,8 @@ function EditingRow({
           />
         </div>
       </TableCell>
-      <TableCell>
-        <div className="order-merge-cell">
+      <TableCell style={collapseAnimationStyle}>
+        <div className="order-merge-cell" style={collapseAnimationStyle}>
           <Select
             value={row.unit}
             onValueChange={(v) => onChange({ unit: v ?? "" })}
@@ -731,8 +734,11 @@ function EditingRow({
           </Select>
         </div>
       </TableCell>
-      <TableCell>
-        <div className="order-merge-cell flex items-center justify-center gap-1">
+      <TableCell style={collapseAnimationStyle}>
+        <div
+          className="order-merge-cell flex items-center justify-center gap-1"
+          style={collapseAnimationStyle}
+        >
           {mergePhase ? (
             <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
               Somando…
