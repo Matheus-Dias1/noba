@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -52,6 +52,12 @@ interface Row {
   processingId: number | null;
   /** true while this row is being added or edited inline. */
   editing: boolean;
+}
+
+interface MergeFeedback {
+  sourceKey: string;
+  targetKey: string;
+  phase: "source" | "target";
 }
 
 type Option = AsyncComboboxOption<string>;
@@ -171,6 +177,13 @@ function OrderForm({
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [productDialogRow, setProductDialogRow] = useState<string | null>(null);
+  const [mergeFeedback, setMergeFeedback] = useState<MergeFeedback | null>(null);
+  const mergeTimers = useRef<number[]>([]);
+
+  useEffect(
+    () => () => mergeTimers.current.forEach((timer) => window.clearTimeout(timer)),
+    [],
+  );
 
   // item rows
   const [rows, setRows] = useState<Row[]>(
@@ -214,34 +227,59 @@ function OrderForm({
       toast.error("Preencha produto, quantidade e unidade.");
       return;
     }
+    const duplicate = rows.find(
+      (candidate) =>
+        candidate.key !== key &&
+        candidate.product?.value === row.product?.value &&
+        candidate.unit === row.unit &&
+        candidate.processingId === row.processingId,
+    );
+
+    if (duplicate) {
+      setMergeFeedback({
+        sourceKey: key,
+        targetKey: duplicate.key,
+        phase: "source",
+      });
+      mergeTimers.current.push(
+        window.setTimeout(() => {
+          setRows((prev) => {
+            const source = prev.find((candidate) => candidate.key === key);
+            const target = prev.find(
+              (candidate) => candidate.key === duplicate.key,
+            );
+            if (!source || !target) return prev;
+
+            const amount = parseFloat(
+              (parseFloat(target.amount) + parseFloat(source.amount)).toFixed(2),
+            );
+            return prev
+              .filter((candidate) => candidate.key !== key)
+              .map((candidate) =>
+                candidate.key === duplicate.key
+                  ? { ...candidate, amount: String(amount), editing: false }
+                  : candidate,
+              );
+          });
+          setMergeFeedback({
+            sourceKey: key,
+            targetKey: duplicate.key,
+            phase: "target",
+          });
+          mergeTimers.current.push(
+            window.setTimeout(() => setMergeFeedback(null), 600),
+          );
+        }, 300),
+      );
+      return;
+    }
+
     setRows((prev) => {
       const savedRow = prev.find((candidate) => candidate.key === key);
       if (!savedRow?.product) return prev;
-
-      const duplicate = prev.find(
-        (candidate) =>
-          candidate.key !== key &&
-          candidate.product?.value === savedRow.product?.value &&
-          candidate.unit === savedRow.unit &&
-          candidate.processingId === savedRow.processingId,
+      return prev.map((candidate) =>
+        candidate.key === key ? { ...candidate, editing: false } : candidate,
       );
-
-      if (!duplicate) {
-        return prev.map((candidate) =>
-          candidate.key === key ? { ...candidate, editing: false } : candidate,
-        );
-      }
-
-      const amount = parseFloat(
-        (parseFloat(duplicate.amount) + parseFloat(savedRow.amount)).toFixed(2),
-      );
-      return prev
-        .filter((candidate) => candidate.key !== key)
-        .map((candidate) =>
-          candidate.key === duplicate.key
-            ? { ...candidate, amount: String(amount), editing: false }
-            : candidate,
-        );
     });
   };
 
@@ -464,6 +502,10 @@ function OrderForm({
                     onCancel={() => cancelRow(row.key)}
                     onRemove={() => removeRow(row.key)}
                     onAddProduct={() => setProductDialogRow(row.key)}
+                    isMerging={
+                      mergeFeedback?.phase === "source" &&
+                      mergeFeedback.sourceKey === row.key
+                    }
                   />
                 ) : (
                   <ReadRow
@@ -471,6 +513,10 @@ function OrderForm({
                     row={row}
                     onEdit={() => updateRow(row.key, { editing: true })}
                     onRemove={() => removeRow(row.key)}
+                    justMerged={
+                      mergeFeedback?.phase === "target" &&
+                      mergeFeedback.targetKey === row.key
+                    }
                   />
                 ),
               )
@@ -487,16 +533,18 @@ function ReadRow({
   row,
   onEdit,
   onRemove,
+  justMerged,
 }: {
   row: Row;
   onEdit: () => void;
   onRemove: () => void;
+  justMerged: boolean;
 }) {
   const processingName = row.processingId
     ? row.product?.processings.find((p) => p.id === row.processingId)?.name
     : null;
   return (
-    <TableRow>
+    <TableRow className={justMerged ? "order-row-merge-target" : undefined}>
       <TableCell className="font-medium">
         <div className="flex items-center gap-2">
           <span>{row.product?.label}</span>
@@ -504,7 +552,11 @@ function ReadRow({
         </div>
       </TableCell>
       <TableCell className="text-center tabular-nums text-muted-foreground">
-        {parseFloat(row.amount).toLocaleString("pt-BR")}
+        <span
+          className={justMerged ? "order-quantity-merge inline-block" : undefined}
+        >
+          {parseFloat(row.amount).toLocaleString("pt-BR")}
+        </span>
       </TableCell>
       <TableCell className="text-center text-muted-foreground">
         {row.unit}
@@ -542,6 +594,7 @@ function EditingRow({
   onCancel,
   onRemove,
   onAddProduct,
+  isMerging,
 }: {
   row: Row;
   onChange: (patch: Partial<Row>) => void;
@@ -549,6 +602,7 @@ function EditingRow({
   onCancel: () => void;
   onRemove: () => void;
   onAddProduct: () => void;
+  isMerging: boolean;
 }) {
   const unitOptions: Option[] = row.product
     ? productUnits(row.product).map((unit) => ({ value: unit, label: unit }))
@@ -560,7 +614,7 @@ function EditingRow({
     : null;
 
   return (
-    <TableRow>
+    <TableRow className={isMerging ? "order-row-merge-out" : undefined}>
       <TableCell>
         <div className="grid grid-cols-3 gap-2">
           <div className={hasProcessings ? "col-span-2" : "col-span-3"}>
@@ -628,26 +682,34 @@ function EditingRow({
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-center gap-1">
-          <Button size="icon-sm" onClick={onSave} aria-label="Salvar item">
-            <Check className="size-4" />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            onClick={onCancel}
-            aria-label="Cancelar"
-          >
-            <X className="size-4" />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            className="text-destructive hover:text-destructive"
-            onClick={onRemove}
-            aria-label="Remover item"
-          >
-            <Trash2 className="size-4" />
-          </Button>
+          {isMerging ? (
+            <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+              Somando…
+            </span>
+          ) : (
+            <>
+              <Button size="icon-sm" onClick={onSave} aria-label="Salvar item">
+                <Check className="size-4" />
+              </Button>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={onCancel}
+                aria-label="Cancelar"
+              >
+                <X className="size-4" />
+              </Button>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                onClick={onRemove}
+                aria-label="Remover item"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </>
+          )}
         </div>
       </TableCell>
     </TableRow>
