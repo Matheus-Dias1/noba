@@ -178,7 +178,7 @@ function OrderForm({
       ? order.items.map((it) => ({
           key: newRowKey(),
           product: {
-            value: it.item.id,
+            value: String(it.item.id),
             label: it.item.description,
             defaultMeasurementUnit: it.item.defaultMeasurementUnit,
             conversions: it.item.conversions,
