@@ -113,13 +113,15 @@ export default function ClientsPage() {
             ))}
           </div>
           {hasMore && (
-            <Button
-              variant="outline"
-              className="w-fit self-center"
-              onClick={() => setVisibleCount((c) => c + 10)}
-            >
-              Carregar mais ({clients.length - visibleCount} restantes)
-            </Button>
+            <div>
+              <Button
+                variant="outline"
+                className="w-fit"
+                onClick={() => setVisibleCount((c) => c + 10)}
+              >
+                Carregar mais
+              </Button>
+            </div>
           )}
         </>
       )}
@@ -236,12 +238,12 @@ function ClientRow({
               </p>
             )}
             <div className="flex justify-end pt-1">
-              <Link
-                href={`/clients/${client.id}`}
-                className="rounded-md px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+              <Button
+                size="sm"
+                render={<Link href={`/clients/${client.id}`} />}
               >
-                Ver detalhes →
-              </Link>
+                Ver detalhes
+              </Button>
             </div>
           </div>
         </CollapsibleContent>
