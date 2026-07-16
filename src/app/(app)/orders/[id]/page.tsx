@@ -41,6 +41,7 @@ import { forceDateDay } from "@/lib/format";
 import type { Conversion } from "@/types";
 import { NewBatchDialog } from "@/components/batches/new-batch-dialog";
 import { NewProductDialog } from "@/components/products/new-product-dialog";
+import { ClientDialog } from "@/components/clients/client-dialog";
 
 /** An item row. Product is held as the combobox option (carries unit metadata). */
 interface Row {
@@ -162,6 +163,7 @@ function OrderForm({
     order ? new Date(order.deliverAt).toISOString().split("T")[0] : "",
   );
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
+  const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [productDialogRow, setProductDialogRow] = useState<string | null>(null);
 
   // item rows
@@ -271,6 +273,15 @@ function OrderForm({
         onOpenChange={setBatchDialogOpen}
         onCreated={(created) => setBatch({ value: created.id, label: batchLabel(created) })}
       />
+      <ClientDialog
+        open={clientDialogOpen}
+        onOpenChange={setClientDialogOpen}
+        onCreated={(created) => {
+          setClient({ value: String(created.id), label: created.name });
+          const activeUnits = created.units.filter((unit) => !unit.archived);
+          setClientUnit(activeUnits.length === 1 ? { value: String(activeUnits[0].id), label: activeUnits[0].name } : null);
+        }}
+      />
       <NewProductDialog
         open={productDialogRow !== null}
         onOpenChange={(open) => !open && setProductDialogRow(null)}
@@ -314,6 +325,8 @@ function OrderForm({
             }}
             placeholder="Selecionar cliente"
             emptyText="Nenhum cliente"
+            onAdd={() => setClientDialogOpen(true)}
+            addLabel="Adicionar cliente"
           />
         </div>
         <div className="space-y-1.5">
@@ -333,17 +346,15 @@ function OrderForm({
         </div>
         <div className="space-y-1.5">
           <Label>Lote</Label>
-          <div className="flex gap-2">
-            <AsyncCombobox
-              loadOptions={loadBatchOptions}
-              value={batch}
-              onChange={(opt) => setBatch(opt as Option | null)}
-              placeholder="Lote"
-              emptyText="Nenhum lote"
-              className="min-w-0"
-            />
-            <Button type="button" size="icon" variant="outline" onClick={() => setBatchDialogOpen(true)} aria-label="Adicionar lote"><Plus className="size-4" /></Button>
-          </div>
+          <AsyncCombobox
+            loadOptions={loadBatchOptions}
+            value={batch}
+            onChange={(opt) => setBatch(opt as Option | null)}
+            placeholder="Lote"
+            emptyText="Nenhum lote"
+            onAdd={() => setBatchDialogOpen(true)}
+            addLabel="Adicionar lote"
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="deliverAt">Entrega</Label>
@@ -519,7 +530,6 @@ function EditingRow({
     <TableRow>
       <TableCell>
         <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
           <AsyncCombobox
             loadOptions={loadProductOptions}
             value={row.product}
@@ -532,10 +542,9 @@ function EditingRow({
             }
             placeholder="Produto"
             emptyText="Nenhum produto"
-            className="min-w-0"
+            onAdd={onAddProduct}
+            addLabel="Adicionar produto"
           />
-          <Button type="button" size="icon" variant="outline" onClick={onAddProduct} aria-label="Adicionar produto"><Plus className="size-4" /></Button>
-          </div>
           {hasProcessings && (
             <Select
               value={row.processingId ? String(row.processingId) : "none"}

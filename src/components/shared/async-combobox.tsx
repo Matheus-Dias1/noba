@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +37,8 @@ interface AsyncComboboxProps<V extends string> {
   emptyText?: string;
   disabled?: boolean;
   className?: string;
+  onAdd?: () => void;
+  addLabel?: string;
 }
 
 /**
@@ -57,6 +59,8 @@ export function AsyncCombobox<V extends string>({
   emptyText = "Nenhum resultado",
   disabled,
   className,
+  onAdd,
+  addLabel = "Adicionar",
 }: AsyncComboboxProps<V>) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -128,7 +132,25 @@ export function AsyncCombobox<V extends string>({
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
         <Command shouldFilter={false}>
-          <CommandInput placeholder="Buscar..." value={search} onValueChange={setSearch} />
+          <div className="flex items-center gap-1 [&_[data-slot=command-input-wrapper]]:min-w-0 [&_[data-slot=command-input-wrapper]]:flex-1">
+            <CommandInput placeholder="Buscar..." value={search} onValueChange={setSearch} />
+            {onAdd && (
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className="mt-1 mr-1 shrink-0"
+                aria-label={addLabel}
+                title={addLabel}
+                onClick={() => {
+                  setOpen(false);
+                  onAdd();
+                }}
+              >
+                <Plus className="size-4" />
+              </Button>
+            )}
+          </div>
           <CommandList onScroll={handleListScroll}>
             {loading && (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">

@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useSaveClient } from "@/queries/clients";
+import { useSaveClient, type Client } from "@/queries/clients";
 import { apiFetch } from "@/lib/api-client";
 import { formatCep, formatCnpj, isValidCnpj } from "@/lib/brazilian-documents";
 import { useRouter } from "next/navigation";
@@ -54,10 +54,12 @@ export function ClientDialog({
   open,
   onOpenChange,
   client,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client?: { id: number; name: string; cnpj: string | null; legalName: string | null };
+  onCreated?: (client: Client) => void;
 }) {
   const [unitView, setUnitView] = useState(false);
   const [contentHeight, setContentHeight] = useState<number>();
@@ -82,6 +84,7 @@ export function ClientDialog({
         {open && (
           <ClientDialogForm
             client={client}
+            onCreated={onCreated}
             onClose={() => {
               setUnitView(false);
               setContentHeight(undefined);
@@ -101,11 +104,13 @@ function ClientDialogForm({
   onClose,
   onUnitViewChange,
   onContentHeightChange,
+  onCreated,
 }: {
   client?: { id: number; name: string; cnpj: string | null; legalName: string | null };
   onClose: () => void;
   onUnitViewChange: (open: boolean) => void;
   onContentHeightChange: (height: number) => void;
+  onCreated?: (client: Client) => void;
 }) {
   const isEdit = !!client;
   const router = useRouter();
@@ -184,7 +189,14 @@ function ClientDialogForm({
       });
       toast.success(isEdit ? "Cliente atualizado" : "Cliente criado");
       onClose();
-      if (!isEdit && "id" in result) router.push(`/clients/${result.id}`);
+      if (!isEdit && "id" in result) {
+        if (onCreated) {
+          const created = await apiFetch<Client>(`/api/clients/${result.id}`);
+          onCreated(created);
+        } else {
+          router.push(`/clients/${result.id}`);
+        }
+      }
     } catch (err) {
       toast.error(
         `Erro ao ${isEdit ? "atualizar" : "criar"} cliente: ${err instanceof Error ? err.message : err}`,
