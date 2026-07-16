@@ -29,6 +29,7 @@ export function DataTable<T>({
   emptyText = "Nenhum resultado.",
   onRowClick,
   containerClassName,
+  tableClassName,
   loading = false,
 }: {
   columns: DataTableColumn<T>[];
@@ -37,6 +38,7 @@ export function DataTable<T>({
   emptyText?: string;
   onRowClick?: (row: T) => void;
   containerClassName?: string;
+  tableClassName?: string;
   loading?: boolean;
 }) {
   if (!loading && rows.length === 0) {
@@ -45,7 +47,7 @@ export function DataTable<T>({
 
   return (
     <div className={cn("overflow-x-auto rounded-lg border", containerClassName)}>
-      <Table containerClassName="overflow-visible">
+      <Table className={tableClassName} containerClassName="overflow-visible">
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
             {columns.map((col) => (

@@ -244,6 +244,7 @@ function OrdersTab({ clientId }: { clientId: number }) {
         rowKey={(o) => String(o.id)}
         emptyText="Nenhum pedido deste cliente."
         onRowClick={(o) => (window.location.href = `/orders/${o.id}?returnTo=${encodeURIComponent(`/clients/${clientId}`)}`)}
+        tableClassName="md:table-fixed"
       />
       <PagePagination page={page} totalCount={data?.totalCount ?? 0} pageSize={30} onPageChange={setPage} />
     </div>

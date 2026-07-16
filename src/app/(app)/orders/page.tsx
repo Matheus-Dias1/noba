@@ -54,6 +54,7 @@ export default function OrdersPage() {
   const columns: DataTableColumn<OrderListItem>[] = [
     {
       header: "Cliente",
+      className: "md:w-52",
       cell: (o) => (
         <span className="font-medium">
           {o.clientName ?? o.client}
@@ -230,6 +231,7 @@ export default function OrdersPage() {
             emptyText="Nenhum pedido encontrado."
             onRowClick={(o) => (window.location.href = `/orders/${o.id}`)}
             containerClassName="h-full overflow-auto overscroll-none"
+            tableClassName="md:table-fixed"
             loading={isFetching}
           />
         )}
