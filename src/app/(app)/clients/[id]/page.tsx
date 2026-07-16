@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import {
@@ -25,14 +24,12 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { ContactsManager } from "@/components/shared/contacts-manager";
 import { ProductTags } from "@/components/shared/product-tags";
 import { ClientDialog } from "@/components/clients/client-dialog";
-import { UnitDialog } from "@/components/clients/unit-dialog";
+import { UnitsContactsTable } from "@/components/clients/units-contacts-table";
 import { formatDate, formatNumber, padBatchNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OrderListItem } from "@/queries/orders";
-import type { ClientUnit } from "@/queries/clients";
 
 const CHART_COLORS = [
   "#265948",
@@ -145,7 +142,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* unidades & contatos — above tabs so it's always visible */}
-      <UnitsSection units={client.units} clientId={clientId} />
+      <UnitsContactsTable units={client.units} clientId={clientId} />
 
       {/* tabs */}
       <div className="flex rounded-lg border p-0.5 w-fit">
@@ -486,66 +483,6 @@ function StatsTab({ clientId }: { clientId: number }) {
           </ResponsiveContainer>
         </Card>
       )}
-    </div>
-  );
-}
-
-/* ==================== UNITS SECTION ==================== */
-
-function UnitsSection({
-  units,
-  clientId,
-}: {
-  units: ClientUnit[];
-  clientId: number;
-}) {
-  const [editingUnit, setEditingUnit] = useState<ClientUnit | null>(null);
-
-  return (
-    <div className="flex flex-col gap-3">
-      <UnitDialog
-        open={!!editingUnit}
-        onOpenChange={(o) => !o && setEditingUnit(null)}
-        unit={editingUnit ?? undefined}
-      />
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Unidades &amp; Contatos
-      </h3>
-      {units.map((unit) => (
-        <div key={unit.id} className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="font-medium">
-              {unit.name}
-            </Badge>
-            {unit.cnpj && (
-              <span className="text-sm text-muted-foreground">CNPJ: {unit.cnpj}</span>
-            )}
-            {[unit.street, unit.city, unit.state]
-              .filter(Boolean)
-              .join(", ") && (
-              <span className="text-sm text-muted-foreground">
-                {[unit.street, unit.city, unit.state]
-                  .filter(Boolean)
-                  .join(", ")}
-              </span>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6"
-              onClick={() => setEditingUnit(unit)}
-              aria-label={`Editar ${unit.name}`}
-            >
-              <Pencil className="size-3.5" />
-            </Button>
-          </div>
-          <ContactsManager
-            contacts={unit.contacts}
-            owner={{ type: "clientUnit", id: unit.id }}
-            detailQueryKey={["client", clientId]}
-          />
-        </div>
-      ))}
     </div>
   );
 }

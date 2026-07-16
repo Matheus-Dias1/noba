@@ -14,17 +14,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useUpdateUnit } from "@/queries/clients";
+import { useSaveUnit, useUpdateUnit } from "@/queries/clients";
 import { formatCep, formatCnpj, isValidCnpj } from "@/lib/brazilian-documents";
 
 /**
- * Unit edit dialog — edits a client unit's name and address fields.
- * Currently edit-only (units are created during client import or creation).
+ * Unit dialog — creates or edits a client unit and its complete address.
  */
 export function UnitDialog({
   open,
   onOpenChange,
   unit,
+  clientId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,11 +40,18 @@ export function UnitDialog({
     zip: string | null;
     complement: string | null;
   };
+  clientId?: number;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
-        {open && unit && <UnitDialogForm unit={unit} onClose={() => onOpenChange(false)} />}
+        {open && (unit || clientId) && (
+          <UnitDialogForm
+            unit={unit}
+            clientId={clientId}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -52,25 +59,24 @@ export function UnitDialog({
 
 type EditableUnit = NonNullable<Parameters<typeof UnitDialog>[0]["unit"]>;
 
-function UnitDialogForm({ unit, onClose }: { unit: EditableUnit; onClose: () => void }) {
-  const [name, setName] = useState(unit.name);
-  const [cnpj, setCnpj] = useState(formatCnpj(unit.cnpj ?? ""));
-  const [street, setStreet] = useState(unit.street ?? "");
-  const [number, setNumber] = useState(unit.number ?? "");
-  const [neighborhood, setNeighborhood] = useState(unit.neighborhood ?? "");
-  const [city, setCity] = useState(unit.city ?? "");
-  const [state, setState] = useState(unit.state ?? "");
-  const [zip, setZip] = useState(formatCep(unit.zip ?? ""));
-  const [complement, setComplement] = useState(unit.complement ?? "");
+function UnitDialogForm({ unit, clientId, onClose }: { unit?: EditableUnit; clientId?: number; onClose: () => void }) {
+  const [name, setName] = useState(unit?.name ?? "");
+  const [cnpj, setCnpj] = useState(formatCnpj(unit?.cnpj ?? ""));
+  const [street, setStreet] = useState(unit?.street ?? "");
+  const [number, setNumber] = useState(unit?.number ?? "");
+  const [neighborhood, setNeighborhood] = useState(unit?.neighborhood ?? "");
+  const [city, setCity] = useState(unit?.city ?? "");
+  const [state, setState] = useState(unit?.state ?? "");
+  const [zip, setZip] = useState(formatCep(unit?.zip ?? ""));
+  const [complement, setComplement] = useState(unit?.complement ?? "");
   const update = useUpdateUnit();
+  const create = useSaveUnit();
   const cnpjValid = isValidCnpj(cnpj);
 
   const handleSubmit = async () => {
     if (!name.trim() || !cnpjValid) return;
     try {
-      await update.mutateAsync({
-        id: unit.id,
-        data: {
+      const data = {
           name: name.trim(),
           cnpj: cnpj.trim(),
           street: street.trim() || undefined,
@@ -80,13 +86,17 @@ function UnitDialogForm({ unit, onClose }: { unit: EditableUnit; onClose: () => 
           state: state.trim() || undefined,
           zip: zip.trim() || undefined,
           complement: complement.trim() || undefined,
-        },
-      });
-      toast.success("Unidade atualizada");
+      };
+      if (unit) {
+        await update.mutateAsync({ id: unit.id, data });
+      } else if (clientId) {
+        await create.mutateAsync({ clientId, ...data });
+      }
+      toast.success(unit ? "Unidade atualizada" : "Unidade adicionada");
       onClose();
     } catch (err) {
       toast.error(
-        `Erro ao atualizar unidade: ${err instanceof Error ? err.message : err}`,
+        `Erro ao salvar unidade: ${err instanceof Error ? err.message : err}`,
       );
     }
   };
@@ -94,9 +104,9 @@ function UnitDialogForm({ unit, onClose }: { unit: EditableUnit; onClose: () => 
   return (
     <>
             <DialogHeader>
-              <DialogTitle>Editar unidade</DialogTitle>
+              <DialogTitle>{unit ? "Editar unidade" : "Adicionar unidade"}</DialogTitle>
               <DialogDescription>
-                Atualize o nome e endereço da unidade.
+                {unit ? "Atualize o nome e endereço da unidade." : "Informe os dados da nova unidade."}
               </DialogDescription>
             </DialogHeader>
 
@@ -203,15 +213,15 @@ function UnitDialogForm({ unit, onClose }: { unit: EditableUnit; onClose: () => 
               <Button
                 variant="outline"
                 onClick={onClose}
-                disabled={update.isPending}
+                disabled={update.isPending || create.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!name.trim() || !cnpjValid || update.isPending}
+                disabled={!name.trim() || !cnpjValid || update.isPending || create.isPending}
               >
-                {update.isPending && (
+                {(update.isPending || create.isPending) && (
                   <Loader2 className="size-4 animate-spin" />
                 )}
                 Salvar

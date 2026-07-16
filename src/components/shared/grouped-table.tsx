@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import {
   Table,
@@ -33,6 +33,9 @@ export function GroupedDataTable<T>({
   emptyText = "Nenhum resultado.",
   onRowClick,
   defaultCollapsedGroups = [],
+  renderGroupHeader,
+  renderGroupFooter,
+  headerPerGroup = false,
 }: {
   columns: DataTableColumn<T>[];
   groups: DataTableGroup<T>[];
@@ -40,6 +43,9 @@ export function GroupedDataTable<T>({
   emptyText?: string;
   onRowClick?: (row: T) => void;
   defaultCollapsedGroups?: string[];
+  renderGroupHeader?: (group: DataTableGroup<T>, isOpen: boolean) => ReactNode;
+  renderGroupFooter?: (group: DataTableGroup<T>) => ReactNode;
+  headerPerGroup?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(defaultCollapsedGroups.map((key) => [key, true])),
@@ -49,8 +55,7 @@ export function GroupedDataTable<T>({
     setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  const hasRows = groups.some((group) => group.rows.length > 0);
-  if (!hasRows) {
+  if (groups.length === 0) {
     return (
       <p className="px-1 py-6 text-sm text-muted-foreground">{emptyText}</p>
     );
@@ -59,21 +64,13 @@ export function GroupedDataTable<T>({
   return (
     <div className="overflow-x-auto rounded-lg border">
       <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/50 hover:bg-muted/50">
-            {columns.map((col) => (
-              <TableHead
-                key={col.header}
-                className={`h-10 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-muted-foreground ${col.className ?? ""}`}
-              >
-                {col.header}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
+        {!headerPerGroup && (
+          <TableHeader>
+            <ColumnsHeader columns={columns} />
+          </TableHeader>
+        )}
         <TableBody>
           {groups.map((group) => {
-            if (group.rows.length === 0) return null;
             const isOpen = !collapsed[group.key];
             return (
               <Fragment key={group.key}>
@@ -85,20 +82,27 @@ export function GroupedDataTable<T>({
                     className="py-2 text-sm font-semibold"
                     colSpan={columns.length}
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <div className="flex w-full items-center gap-2">
                       <ChevronRight
                         className={cn(
                           "h-4 w-4 text-muted-foreground transition-transform duration-200",
                           isOpen && "rotate-90",
                         )}
                       />
-                      {group.label}
-                      <span className="font-normal text-muted-foreground">
-                        {group.rows.length}
-                      </span>
-                    </span>
+                      {renderGroupHeader ? (
+                        renderGroupHeader(group, isOpen)
+                      ) : (
+                        <>
+                          {group.label}
+                          <span className="font-normal text-muted-foreground">
+                            {group.rows.length}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
+                {isOpen && headerPerGroup && <ColumnsHeader columns={columns} />}
                 {isOpen &&
                   group.rows.map((row, i) => (
                     <TableRow
@@ -113,11 +117,33 @@ export function GroupedDataTable<T>({
                       ))}
                     </TableRow>
                   ))}
+                {isOpen && renderGroupFooter && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={columns.length} className="p-2">
+                      {renderGroupFooter(group)}
+                    </TableCell>
+                  </TableRow>
+                )}
               </Fragment>
             );
           })}
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+function ColumnsHeader<T>({ columns }: { columns: DataTableColumn<T>[] }) {
+  return (
+    <TableRow className="bg-muted/30 hover:bg-muted/30">
+      {columns.map((col) => (
+        <TableHead
+          key={col.header}
+          className={`h-9 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-muted-foreground ${col.className ?? ""}`}
+        >
+          {col.header}
+        </TableHead>
+      ))}
+    </TableRow>
   );
 }

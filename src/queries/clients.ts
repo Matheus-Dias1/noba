@@ -103,10 +103,30 @@ export function useSaveUnit() {
       name: string;
       cnpj?: string;
       street?: string;
+      number?: string;
+      neighborhood?: string;
       city?: string;
       state?: string;
+      zip?: string;
+      complement?: string;
     }) => apiFetch("/api/client-units", { method: "POST", body: data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+    onSuccess: (_data, { clientId }) => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["client", clientId] });
+    },
+  });
+}
+
+/** useDeleteUnit — archive a client unit. */
+export function useDeleteUnit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: number; clientId: number }) =>
+      apiFetch(`/api/client-units/${id}`, { method: "DELETE" }),
+    onSuccess: (_data, { clientId }) => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["client", clientId] });
+    },
   });
 }
 
