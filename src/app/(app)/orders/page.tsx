@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Plus, X } from "lucide-react";
 import { useOrders } from "@/queries/orders";
@@ -34,6 +34,7 @@ export default function OrdersPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
+  const clientSelectionSequence = useRef(0);
 
   const { data, status, isFetching } = useOrders({
     batch: batchFilter?.value,
@@ -131,29 +132,66 @@ export default function OrdersPage() {
         </div>
         <div className="min-w-[180px] flex-1 space-y-1.5">
           <Label className="text-xs text-muted-foreground">Cliente</Label>
-          <AsyncCombobox loadOptions={loadClientOptions} value={clientFilter} onChange={(option) => {
+          <AsyncCombobox loadOptions={loadClientOptions} value={clientFilter} onChange={async (option) => {
+            const sequence = ++clientSelectionSequence.current;
             if (option?.value !== clientFilter?.value) setUnitFilter(null);
             setClientFilter(option);
             setPage(1);
+            if (!option) return;
+            const units = await loadUnitOptions(Number(option.value), "");
+            if (sequence === clientSelectionSequence.current && units.options.length === 1) {
+              setUnitFilter(units.options[0]);
+            }
           }} placeholder="Todos os clientes" emptyText="Nenhum cliente" />
         </div>
-        {clientFilter && <div className="min-w-[180px] flex-1 space-y-1.5">
+        <div className="min-w-[180px] flex-1 space-y-1.5">
           <Label className="text-xs text-muted-foreground">Unidade</Label>
           <AsyncCombobox
-            loadOptions={(search) => loadUnitOptions(Number(clientFilter.value), search)}
+            loadOptions={(search) => clientFilter
+              ? loadUnitOptions(Number(clientFilter.value), search)
+              : Promise.resolve({ options: [], hasMore: false })}
             value={unitFilter}
             onChange={(option) => { setUnitFilter(option); setPage(1); }}
-            placeholder="Todas as unidades"
+            placeholder={clientFilter ? "Todas as unidades" : "Selecione um cliente"}
             emptyText="Nenhuma unidade"
+            disabled={!clientFilter}
           />
-        </div>}
+        </div>
         <div className="min-w-[180px] flex-1 space-y-1.5">
           <Label className="text-xs text-muted-foreground">Produto</Label>
           <AsyncCombobox loadOptions={loadProductOptions} value={null} onChange={(option) => {
             const product = option as ProductPickerOption | null;
             if (product && !productFilters.some((item) => item.value === product.value)) { setProductFilters((items) => [...items, product]); setPage(1); }
-          }} placeholder="Adicionar produto" emptyText="Nenhum produto" />
-          {productFilters.length > 0 && <div className="flex flex-wrap gap-1 pt-1">{productFilters.map((product) => <Badge key={product.value} variant="secondary">{product.label}<button type="button" aria-label={`Remover ${product.label}`} onClick={() => { setProductFilters((items) => items.filter((item) => item.value !== product.value)); setPage(1); }}><X className="ml-1 size-3" /></button></Badge>)}</div>}
+          }} placeholder="Adicionar produto" emptyText="Nenhum produto" triggerContent={productFilters.length > 0 ? (
+            <span className="flex min-w-0 flex-1 flex-wrap gap-1 py-0.5">
+              {productFilters.map((product) => (
+                <Badge key={product.value} variant="secondary" className="max-w-full">
+                  <span className="truncate">{product.label}</span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Remover ${product.label}`}
+                    onPointerDown={(event) => event.preventDefault()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setProductFilters((items) => items.filter((item) => item.value !== product.value));
+                      setPage(1);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setProductFilters((items) => items.filter((item) => item.value !== product.value));
+                        setPage(1);
+                      }
+                    }}
+                  >
+                    <X className="ml-1 size-3" />
+                  </span>
+                </Badge>
+              ))}
+            </span>
+          ) : undefined} />
         </div>
         <div className="min-w-[150px] space-y-1.5">
           <Label htmlFor="from" className="text-xs text-muted-foreground">Entrega de</Label>

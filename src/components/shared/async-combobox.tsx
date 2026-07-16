@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ interface AsyncComboboxProps<V extends string> {
   className?: string;
   onAdd?: () => void;
   addLabel?: string;
+  triggerContent?: ReactNode;
 }
 
 /**
@@ -61,6 +63,7 @@ export function AsyncCombobox<V extends string>({
   className,
   onAdd,
   addLabel = "Adicionar",
+  triggerContent,
 }: AsyncComboboxProps<V>) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -119,7 +122,7 @@ export function AsyncCombobox<V extends string>({
             role="combobox"
             aria-expanded={open}
             className={cn(
-              "w-full justify-between font-normal",
+              "h-auto min-h-9 w-full justify-between font-normal",
               !value && "text-muted-foreground",
               className,
             )}
@@ -127,7 +130,9 @@ export function AsyncCombobox<V extends string>({
           />
         }
       >
-        <span className="truncate">{value?.label || placeholder}</span>
+        {triggerContent ?? (
+          <span className="truncate">{value?.label || placeholder}</span>
+        )}
         <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
