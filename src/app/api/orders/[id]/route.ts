@@ -49,6 +49,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // items with product + conversions + processing
     const itemRows = await db
       .select({
+        orderItemId: orderItems.id,
         amount: orderItems.amount,
         unit: orderItems.unit,
         processingId: orderItems.processingId,
@@ -65,7 +66,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     // collapse conversions into the product
     const prodMap = new Map<number, { id: number; description: string; defaultMeasurementUnit: string; conversions: { measurementUnit: string; oneDefaultEquals: number }[]; processings: { id: number; name: string }[] }>();
-    const lineOrder: { amount: number; measurementUnit: string; processingId: number | null; product: number }[] = [];
+    const lineMap = new Map<number, { amount: number; measurementUnit: string; processingId: number | null; product: number }>();
     for (const r of itemRows) {
       if (!prodMap.has(r.productId)) {
         prodMap.set(r.productId, {
@@ -75,9 +76,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           conversions: [],
           processings: [],
         });
-        lineOrder.push({ amount: Number(r.amount), measurementUnit: r.unit, processingId: r.processingId, product: r.productId });
       }
-      if (r.convUnit) {
+      if (!lineMap.has(r.orderItemId)) {
+        lineMap.set(r.orderItemId, {
+          amount: Number(r.amount),
+          measurementUnit: r.unit,
+          processingId: r.processingId,
+          product: r.productId,
+        });
+      }
+      if (r.convUnit && !prodMap.get(r.productId)!.conversions.some((conversion) => conversion.measurementUnit === r.convUnit)) {
         prodMap.get(r.productId)!.conversions.push({
           measurementUnit: r.convUnit,
           oneDefaultEquals: Number(r.convFactor),
@@ -114,7 +122,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       },
       clientUnitId: orderRow.clientUnitId,
       clientId: orderRow.clientId,
-      items: lineOrder.map((l) => ({
+      items: [...lineMap.values()].map((l) => ({
         amount: l.amount,
         measurementUnit: l.measurementUnit,
         processingId: l.processingId,

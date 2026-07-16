@@ -525,32 +525,39 @@ function EditingRow({
     : [];
 
   const hasProcessings = (row.product?.processings?.length ?? 0) > 0;
+  const selectedProcessingLabel = row.processingId
+    ? row.product?.processings.find((processing) => processing.id === row.processingId)?.name
+    : null;
 
   return (
     <TableRow>
       <TableCell>
-        <div className="flex flex-col gap-2">
-          <AsyncCombobox
-            loadOptions={loadProductOptions}
-            value={row.product}
-            onChange={(opt) =>
-              onChange({
-                product: opt as ProductPickerOption | null,
-                unit: "",
-                processingId: null,
-              })
-            }
-            placeholder="Produto"
-            emptyText="Nenhum produto"
-            onAdd={onAddProduct}
-            addLabel="Adicionar produto"
-          />
+        <div className="grid grid-cols-3 gap-2">
+          <div className={hasProcessings ? "col-span-2" : "col-span-3"}>
+            <AsyncCombobox
+              loadOptions={loadProductOptions}
+              value={row.product}
+              onChange={(opt) =>
+                onChange({
+                  product: opt as ProductPickerOption | null,
+                  unit: "",
+                  processingId: null,
+                })
+              }
+              placeholder="Produto"
+              emptyText="Nenhum produto"
+              onAdd={onAddProduct}
+              addLabel="Adicionar produto"
+            />
+          </div>
           {hasProcessings && (
             <Select
               value={row.processingId ? String(row.processingId) : "none"}
               onValueChange={(value) => onChange({ processingId: value === "none" ? null : Number(value) })}
             >
-              <SelectTrigger><SelectValue placeholder="Processamento" /></SelectTrigger>
+              <SelectTrigger className="w-full min-w-0">
+                <span className="truncate text-left">{selectedProcessingLabel ?? "Nenhum"}</span>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Nenhum processamento</SelectItem>
                 {row.product!.processings.map((processing) => <SelectItem key={processing.id} value={String(processing.id)}>{processing.name}</SelectItem>)}
