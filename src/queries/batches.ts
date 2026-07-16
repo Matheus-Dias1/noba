@@ -115,7 +115,7 @@ export async function loadProductOptions(
   const params = new URLSearchParams();
   if (search) params.set("search", search);
   if (cursor) params.set("afterCursor", cursor);
-  const res = await apiFetch<Paginated<{ id: string; description: string; defaultMeasurementUnit: string; conversions: Conversion[]; processings: { id: number; name: string }[] }>>(
+  const res = await apiFetch<Paginated<{ id: string; description: string; defaultMeasurementUnit: string; conversions: Conversion[]; processings: { id: string; name: string }[] }>>(
     `/api/products?${params}`,
   );
   return {
@@ -124,7 +124,10 @@ export async function loadProductOptions(
       label: e.node.description,
       defaultMeasurementUnit: e.node.defaultMeasurementUnit,
       conversions: e.node.conversions,
-      processings: e.node.processings,
+      processings: e.node.processings.map((processing) => ({
+        id: Number(processing.id),
+        name: processing.name,
+      })),
     })),
     hasMore: res.pageInfo.hasNextPage,
     nextCursor: res.pageInfo.endCursor ?? undefined,
