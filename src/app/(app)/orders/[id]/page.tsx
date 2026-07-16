@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -178,6 +179,7 @@ function OrderForm({
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [productDialogRow, setProductDialogRow] = useState<string | null>(null);
   const [mergeFeedback, setMergeFeedback] = useState<MergeFeedback | null>(null);
+  const [mergeCollapseDuration, setMergeCollapseDuration] = useState(900);
   const mergeTimers = useRef<number[]>([]);
 
   useEffect(
@@ -276,7 +278,7 @@ function OrderForm({
               mergeTimers.current.push(
                 window.setTimeout(() => setMergeFeedback(null), 1000),
               );
-            }, 900),
+            }, mergeCollapseDuration),
           );
         }, 1000),
       );
@@ -467,9 +469,26 @@ function OrderForm({
       {/* items table */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold tracking-tight">Itens</h2>
-        <Button type="button" size="sm" onClick={addRow} variant="outline">
-          <Plus className="size-4" /> Adicionar item
-        </Button>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Remoção: {mergeCollapseDuration} ms</span>
+            <input
+              type="range"
+              min="100"
+              max="1000"
+              step="50"
+              value={mergeCollapseDuration}
+              onChange={(event) =>
+                setMergeCollapseDuration(Number(event.target.value))
+              }
+              className="w-32 accent-primary"
+              aria-label="Duração temporária da animação de remoção"
+            />
+          </label>
+          <Button type="button" size="sm" onClick={addRow} variant="outline">
+            <Plus className="size-4" /> Adicionar item
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
@@ -518,6 +537,7 @@ function OrderForm({
                         ? mergeFeedback.phase
                         : null
                     }
+                    mergeCollapseDuration={mergeCollapseDuration}
                   />
                 ) : (
                   <ReadRow
@@ -607,6 +627,7 @@ function EditingRow({
   onRemove,
   onAddProduct,
   mergePhase,
+  mergeCollapseDuration,
 }: {
   row: Row;
   onChange: (patch: Partial<Row>) => void;
@@ -615,6 +636,7 @@ function EditingRow({
   onRemove: () => void;
   onAddProduct: () => void;
   mergePhase: "source-highlight" | "source-collapse" | null;
+  mergeCollapseDuration: number;
 }) {
   const unitOptions: Option[] = row.product
     ? productUnits(row.product).map((unit) => ({ value: unit, label: unit }))
@@ -633,6 +655,11 @@ function EditingRow({
           : mergePhase === "source-collapse"
             ? "order-row-merge-out"
             : undefined
+      }
+      style={
+        {
+          "--merge-collapse-duration": `${mergeCollapseDuration}ms`,
+        } as CSSProperties
       }
     >
       <TableCell>
