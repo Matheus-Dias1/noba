@@ -16,6 +16,8 @@ import {
   Cell,
   PieChart,
   Pie,
+  LineChart,
+  Line,
 } from "recharts";
 import { useClient } from "@/queries/clients";
 import { useClientStats } from "@/queries/client-stats";
@@ -33,17 +35,23 @@ import type { OrderListItem } from "@/queries/orders";
 import { PagePagination } from "@/components/shared/page-pagination";
 
 const CHART_COLORS = [
-  "#265948",
-  "#47846f",
-  "#5a9a82",
-  "#6db095",
-  "#80c6a8",
-  "#df3d0a",
-  "#e8622b",
-  "#f08748",
-  "#f8ac65",
-  "#ffd182",
+  "#16a34a",
+  "#2563eb",
+  "#d97706",
+  "#9333ea",
+  "#dc2626",
+  "#0891b2",
+  "#db2777",
+  "#65a30d",
+  "#4f46e5",
+  "#ea580c",
 ];
+
+function chartColor(name: string) {
+  let hash = 0;
+  for (const character of name) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  return CHART_COLORS[hash % CHART_COLORS.length];
+}
 
 const MONTHS_PT = [
   "Janeiro",
@@ -318,10 +326,10 @@ function StatsTab({ clientId }: { clientId: number }) {
                   innerRadius={35}
                   paddingAngle={2}
                 >
-                  {stats.ordersByUnit.map((_, i) => (
+                  {stats.ordersByUnit.map((unit) => (
                     <Cell
-                      key={i}
-                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                      key={unit.unitName}
+                      fill={chartColor(unit.unitName)}
                     />
                   ))}
                 </Pie>
@@ -333,7 +341,7 @@ function StatsTab({ clientId }: { clientId: number }) {
             </ResponsiveContainer>
             {/* legend below pie */}
             <div className="mt-2 flex flex-col gap-1">
-              {stats.ordersByUnit.map((u, i) => (
+              {stats.ordersByUnit.map((u) => (
                 <div
                   key={u.unitName}
                   className="flex items-center gap-2 text-xs"
@@ -341,7 +349,7 @@ function StatsTab({ clientId }: { clientId: number }) {
                   <span
                     className="size-2.5 shrink-0 rounded-full"
                     style={{
-                      background: CHART_COLORS[i % CHART_COLORS.length],
+                      background: chartColor(u.unitName),
                     }}
                   />
                   <span className="min-w-0 flex-1 truncate text-foreground">
@@ -385,7 +393,7 @@ function StatsTab({ clientId }: { clientId: number }) {
           </div>
           <ResponsiveContainer width="100%" height={250}>
             {monthView === "total" ? (
-              <BarChart data={stats.ordersByMonth}>
+              <LineChart data={stats.ordersByMonth}>
                 <XAxis
                   dataKey="month"
                   tick={{ fontSize: 11 }}
@@ -396,12 +404,12 @@ function StatsTab({ clientId }: { clientId: number }) {
                 />
                 <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                 <Tooltip
-                  cursor={{ fill: CURSOR_FILL }}
+                  cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
                   content={<MonthTooltip />}
                   contentStyle={TOOLTIP_STYLE}
                 />
-                <Bar dataKey="count" fill="#265948" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <Line type="monotone" dataKey="count" stroke={CHART_COLORS[0]} strokeWidth={3} dot={{ r: 4, fill: CHART_COLORS[0] }} activeDot={{ r: 6 }} />
+              </LineChart>
             ) : (
               <BarChart data={monthByUnitData}>
                 <XAxis
@@ -423,7 +431,7 @@ function StatsTab({ clientId }: { clientId: number }) {
                     key={name}
                     dataKey={name}
                     stackId="units"
-                    fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    fill={chartColor(name)}
                     radius={
                       i === unitNames.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]
                     }
@@ -467,8 +475,8 @@ function StatsTab({ clientId }: { clientId: number }) {
                 contentStyle={TOOLTIP_STYLE}
               />
               <Bar dataKey="totalItems" radius={[0, 4, 4, 0]}>
-                {stats.topProducts.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                {stats.topProducts.map((product) => (
+                  <Cell key={product.name} fill={chartColor(product.name)} />
                 ))}
               </Bar>
             </BarChart>
