@@ -267,9 +267,9 @@ function OrderForm({
             phase: "target",
           });
           mergeTimers.current.push(
-            window.setTimeout(() => setMergeFeedback(null), 600),
+            window.setTimeout(() => setMergeFeedback(null), 1800),
           );
-        }, 300),
+        }, 900),
       );
       return;
     }
@@ -616,7 +616,7 @@ function EditingRow({
   return (
     <TableRow className={isMerging ? "order-row-merge-out" : undefined}>
       <TableCell>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="order-merge-cell grid grid-cols-3 gap-2">
           <div className={hasProcessings ? "col-span-2" : "col-span-3"}>
             <AsyncCombobox
               loadOptions={loadProductOptions}
@@ -653,35 +653,39 @@ function EditingRow({
         </div>
       </TableCell>
       <TableCell>
-        <Input
-          type="number"
-          inputMode="decimal"
-          value={row.amount}
-          onChange={(e) => onChange({ amount: e.target.value })}
-          placeholder="0"
-          className="text-center"
-        />
+        <div className="order-merge-cell">
+          <Input
+            type="number"
+            inputMode="decimal"
+            value={row.amount}
+            onChange={(e) => onChange({ amount: e.target.value })}
+            placeholder="0"
+            className="text-center"
+          />
+        </div>
       </TableCell>
       <TableCell>
-        <Select
-          value={row.unit}
-          onValueChange={(v) => onChange({ unit: v ?? "" })}
-          disabled={!row.product}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={row.product ? "Unidade" : "Selecione"} />
-          </SelectTrigger>
-          <SelectContent>
-            {unitOptions.map((u) => (
-              <SelectItem key={u.value} value={u.value}>
-                {u.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="order-merge-cell">
+          <Select
+            value={row.unit}
+            onValueChange={(v) => onChange({ unit: v ?? "" })}
+            disabled={!row.product}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={row.product ? "Unidade" : "Selecione"} />
+            </SelectTrigger>
+            <SelectContent>
+              {unitOptions.map((u) => (
+                <SelectItem key={u.value} value={u.value}>
+                  {u.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </TableCell>
       <TableCell>
-        <div className="flex items-center justify-center gap-1">
+        <div className="order-merge-cell flex items-center justify-center gap-1">
           {isMerging ? (
             <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
               Somando…
