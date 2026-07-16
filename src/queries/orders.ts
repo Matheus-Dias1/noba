@@ -79,6 +79,7 @@ export function useOrders(filters: {
   from?: string;
   to?: string;
   product?: string;
+  productIds?: string[];
   clientUnit?: number | null;
   clientId?: number | null;
 }) {
@@ -90,6 +91,7 @@ export function useOrders(filters: {
       filters.from ?? null,
       filters.to ?? null,
       filters.product ?? null,
+      filters.productIds?.join(",") ?? null,
       filters.clientUnit ?? null,
       filters.clientId ?? null,
     ],
@@ -100,6 +102,7 @@ export function useOrders(filters: {
       if (filters.from) params.set("from", filters.from);
       if (filters.to) params.set("to", filters.to);
       if (filters.product) params.set("product", filters.product);
+      if (filters.productIds?.length) params.set("products", filters.productIds.join(","));
       if (filters.clientUnit) params.set("clientUnit", String(filters.clientUnit));
       if (filters.clientId) params.set("clientId", String(filters.clientId));
       if (pageParam) params.set("afterCursor", pageParam);

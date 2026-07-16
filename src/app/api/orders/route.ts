@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
 
   try {
-    const { afterCursor, batch, client, from, to, product, clientUnit, clientId } =
+    const { afterCursor, batch, client, from, to, product, products: productIds, clientUnit, clientId } =
       Object.fromEntries(req.nextUrl.searchParams);
 
     const conds: SQL[] = [not(orders.archived)];
@@ -50,6 +50,14 @@ export async function GET(req: NextRequest) {
           WHERE p.description ILIKE ${"%" + product + "%"}
         )`,
       );
+    }
+    if (productIds) {
+      for (const productId of productIds.split(",").filter(Boolean)) {
+        conds.push(sql`EXISTS (
+          SELECT 1 FROM ${orderItems} oi
+          WHERE oi.order_id = ${orders.id} AND oi.product_id = ${Number(productId)}
+        )`);
+      }
     }
     if (afterCursor) conds.push(lt(orders.id, decodeCursor(afterCursor)));
 
