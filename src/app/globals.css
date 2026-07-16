@@ -163,13 +163,13 @@
 }
 
 @keyframes order-row-merge-target {
-  0%, 100% { background-color: transparent; }
-  35% { background-color: color-mix(in oklab, var(--primary) 18%, transparent); }
+  0%, 85% { background-color: color-mix(in oklab, var(--primary) 18%, transparent); }
+  100% { background-color: transparent; }
 }
 
 @keyframes order-quantity-merge {
-  0%, 100% { transform: scale(1); }
-  40% { transform: scale(1.22); }
+  0%, 30%, 100% { transform: scale(1); }
+  15% { transform: scale(1.22); }
 }
 
 .order-row-merge-highlight,
@@ -192,7 +192,8 @@
   transform-origin: top;
 }
 
-.order-row-merge-target {
+.order-row-merge-target,
+.order-row-merge-target > td {
   animation: order-row-merge-target 2000ms ease-out;
 }
 

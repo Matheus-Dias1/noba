@@ -219,6 +219,29 @@ function OrderForm({
   const removeRow = (key: string) =>
     setRows((prev) => prev.filter((r) => r.key !== key));
 
+  const completeRowMerge = (sourceKey: string, targetKey: string) => {
+    setRows((prev) => {
+      const source = prev.find((candidate) => candidate.key === sourceKey);
+      const target = prev.find((candidate) => candidate.key === targetKey);
+      if (!source || !target) return prev;
+
+      const amount = parseFloat(
+        (parseFloat(target.amount) + parseFloat(source.amount)).toFixed(2),
+      );
+      return prev
+        .filter((candidate) => candidate.key !== sourceKey)
+        .map((candidate) =>
+          candidate.key === targetKey
+            ? { ...candidate, amount: String(amount), editing: false }
+            : candidate,
+        );
+    });
+    setMergeFeedback({ sourceKey, targetKey, phase: "target" });
+    mergeTimers.current.push(
+      window.setTimeout(() => setMergeFeedback(null), 2000),
+    );
+  };
+
   // validate + commit an editing row back to read-only
   const saveRow = (key: string) => {
     const row = rows.find((r) => r.key === key);
@@ -252,36 +275,9 @@ function OrderForm({
             targetKey: duplicate.key,
             phase: "source-collapse",
           });
-          mergeTimers.current.push(
-            window.setTimeout(() => {
-              setRows((prev) => {
-                const source = prev.find((candidate) => candidate.key === key);
-                const target = prev.find(
-                  (candidate) => candidate.key === duplicate.key,
-                );
-                if (!source || !target) return prev;
-
-                const amount = parseFloat(
-                  (parseFloat(target.amount) + parseFloat(source.amount)).toFixed(2),
-                );
-                return prev
-                  .filter((candidate) => candidate.key !== key)
-                  .map((candidate) =>
-                    candidate.key === duplicate.key
-                      ? { ...candidate, amount: String(amount), editing: false }
-                      : candidate,
-                  );
-              });
-              setMergeFeedback({
-                sourceKey: key,
-                targetKey: duplicate.key,
-                phase: "target",
-              });
-              mergeTimers.current.push(
-                window.setTimeout(() => setMergeFeedback(null), 2000),
-              );
-            }, 300),
-          );
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            completeRowMerge(key, duplicate.key);
+          }
         }, 1000),
       );
       return;
@@ -526,6 +522,9 @@ function OrderForm({
                         ? mergeFeedback.phase
                         : null
                     }
+                    onCollapseEnd={() =>
+                      completeRowMerge(row.key, mergeFeedback!.targetKey)
+                    }
                   />
                 ) : (
                   <ReadRow
@@ -615,6 +614,7 @@ function EditingRow({
   onRemove,
   onAddProduct,
   mergePhase,
+  onCollapseEnd,
 }: {
   row: Row;
   onChange: (patch: Partial<Row>) => void;
@@ -623,6 +623,7 @@ function EditingRow({
   onRemove: () => void;
   onAddProduct: () => void;
   mergePhase: "source-highlight" | "source-collapse" | null;
+  onCollapseEnd: () => void;
 }) {
   const unitOptions: Option[] = row.product
     ? productUnits(row.product).map((unit) => ({ value: unit, label: unit }))
@@ -641,6 +642,14 @@ function EditingRow({
             ? "order-row-merge-out"
             : undefined
       }
+      onAnimationEnd={(event) => {
+        if (
+          event.target === event.currentTarget &&
+          event.animationName === "order-row-merge-out"
+        ) {
+          onCollapseEnd();
+        }
+      }}
     >
       <TableCell>
         <div className="order-merge-cell grid grid-cols-3 gap-2">
