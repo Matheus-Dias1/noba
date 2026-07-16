@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,12 @@ export default function OrderEditorPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isNew = id === "new";
+  const requestedReturn = searchParams.get("returnTo");
+  const returnHref = requestedReturn && /^\/clients\/\d+$/.test(requestedReturn)
+    ? requestedReturn
+    : "/orders";
 
   const { data: order, isLoading } = useOrder(!isNew ? id : undefined);
   const saveMutation = useSaveOrder();
@@ -92,11 +97,12 @@ export default function OrderEditorPage() {
       isNew={isNew}
       order={order}
       submitting={saveMutation.isPending}
+      cancelHref={returnHref}
       onSubmit={async (body) => {
         try {
           await saveMutation.mutateAsync({ id: isNew ? undefined : id, data: body });
           toast.success(isNew ? "Pedido criado" : "Pedido atualizado");
-          router.push("/orders");
+          router.push(returnHref);
           router.refresh();
         } catch (err) {
           toast.error(
@@ -113,10 +119,12 @@ function OrderForm({
   order,
   submitting,
   onSubmit,
+  cancelHref,
 }: {
   isNew: boolean;
   order?: OrderDetail;
   submitting: boolean;
+  cancelHref: string;
   onSubmit: (body: {
     clientUnitId: number | null;
     client: string;
@@ -283,7 +291,7 @@ function OrderForm({
         }}
       />
       <EditActions
-        cancelHref="/orders"
+        cancelHref={cancelHref}
         onSubmit={handleConfirm}
         submitting={submitting}
       />
