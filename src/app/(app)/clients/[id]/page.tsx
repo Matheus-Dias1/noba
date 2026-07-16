@@ -35,16 +35,16 @@ import type { OrderListItem } from "@/queries/orders";
 import { PagePagination } from "@/components/shared/page-pagination";
 
 const CHART_COLORS = [
-  "#16a34a",
-  "#2563eb",
-  "#d97706",
-  "#9333ea",
-  "#dc2626",
-  "#0891b2",
-  "#db2777",
-  "#65a30d",
-  "#4f46e5",
-  "#ea580c",
+  "#001219",
+  "#005f73",
+  "#0a9396",
+  "#94d2bd",
+  "#e9d8a6",
+  "#ee9b00",
+  "#ca6702",
+  "#bb3e03",
+  "#ae2012",
+  "#9b2226",
 ];
 
 function chartColor(name: string) {
