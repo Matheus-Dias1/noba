@@ -38,6 +38,8 @@ import { useOrder, useSaveOrder } from "@/queries/orders";
 import type { OrderDetail } from "@/queries/orders";
 import { forceDateDay } from "@/lib/format";
 import type { Conversion } from "@/types";
+import { NewBatchDialog } from "@/components/batches/new-batch-dialog";
+import { NewProductDialog } from "@/components/products/new-product-dialog";
 
 /** An item row. Product is held as the combobox option (carries unit metadata). */
 interface Row {
@@ -150,6 +152,8 @@ function OrderForm({
   const [deliverAt, setDeliverAt] = useState(
     order ? new Date(order.deliverAt).toISOString().split("T")[0] : "",
   );
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
+  const [productDialogRow, setProductDialogRow] = useState<string | null>(null);
 
   // item rows
   const [rows, setRows] = useState<Row[]>(
@@ -253,6 +257,30 @@ function OrderForm({
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 md:p-8">
+      <NewBatchDialog
+        open={batchDialogOpen}
+        onOpenChange={setBatchDialogOpen}
+        onCreated={(created) => setBatch({ value: created.id, label: batchLabel(created) })}
+      />
+      <NewProductDialog
+        open={productDialogRow !== null}
+        onOpenChange={(open) => !open && setProductDialogRow(null)}
+        onCreated={(product) => {
+          if (!productDialogRow) return;
+          updateRow(productDialogRow, {
+            product: {
+              value: product.id,
+              label: product.description,
+              defaultMeasurementUnit: product.defaultMeasurementUnit,
+              conversions: product.conversions,
+              processings: product.processings.map((item) => ({ id: Number(item.id), name: item.name })),
+            },
+            unit: product.defaultMeasurementUnit,
+            processingId: null,
+          });
+          setProductDialogRow(null);
+        }}
+      />
       <EditActions
         cancelHref="/orders"
         onSubmit={handleConfirm}
@@ -296,13 +324,17 @@ function OrderForm({
         </div>
         <div className="space-y-1.5">
           <Label>Lote</Label>
-          <AsyncCombobox
-            loadOptions={loadBatchOptions}
-            value={batch}
-            onChange={(opt) => setBatch(opt as Option | null)}
-            placeholder="Lote"
-            emptyText="Nenhum lote"
-          />
+          <div className="flex gap-2">
+            <AsyncCombobox
+              loadOptions={loadBatchOptions}
+              value={batch}
+              onChange={(opt) => setBatch(opt as Option | null)}
+              placeholder="Lote"
+              emptyText="Nenhum lote"
+              className="min-w-0"
+            />
+            <Button type="button" size="icon" variant="outline" onClick={() => setBatchDialogOpen(true)} aria-label="Adicionar lote"><Plus className="size-4" /></Button>
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="deliverAt">Entrega</Label>
@@ -375,6 +407,7 @@ function OrderForm({
                     onSave={() => saveRow(row.key)}
                     onCancel={() => cancelRow(row.key)}
                     onRemove={() => removeRow(row.key)}
+                    onAddProduct={() => setProductDialogRow(row.key)}
                   />
                 ) : (
                   <ReadRow
@@ -450,12 +483,14 @@ function EditingRow({
   onSave,
   onCancel,
   onRemove,
+  onAddProduct,
 }: {
   row: Row;
   onChange: (patch: Partial<Row>) => void;
   onSave: () => void;
   onCancel: () => void;
   onRemove: () => void;
+  onAddProduct: () => void;
 }) {
   const unitOptions: Option[] = row.product
     ? [
@@ -475,19 +510,23 @@ function EditingRow({
   return (
     <TableRow>
       <TableCell>
-        <AsyncCombobox
-          loadOptions={loadProductOptions}
-          value={row.product}
-          onChange={(opt) =>
-            onChange({
-              product: opt as ProductPickerOption | null,
-              unit: "",
-              processingId: null,
-            })
-          }
-          placeholder="Produto"
-          emptyText="Nenhum produto"
-        />
+        <div className="flex gap-2">
+          <AsyncCombobox
+            loadOptions={loadProductOptions}
+            value={row.product}
+            onChange={(opt) =>
+              onChange({
+                product: opt as ProductPickerOption | null,
+                unit: "",
+                processingId: null,
+              })
+            }
+            placeholder="Produto"
+            emptyText="Nenhum produto"
+            className="min-w-0"
+          />
+          <Button type="button" size="icon" variant="outline" onClick={onAddProduct} aria-label="Adicionar produto"><Plus className="size-4" /></Button>
+        </div>
       </TableCell>
       <TableCell>
         <Input

@@ -74,9 +74,14 @@ export async function POST(req: NextRequest) {
         endDate: new Date(endDate),
         number: sql`(SELECT COALESCE(MAX(${batches.number}), 0) + 1 FROM ${batches})`,
       })
-      .returning({ id: batches.id });
+      .returning({
+        id: batches.id,
+        number: batches.number,
+        startDate: batches.startDate,
+        endDate: batches.endDate,
+      });
 
-    return NextResponse.json({ id: String(created.id) }, { status: 201 });
+    return NextResponse.json({ ...created, id: String(created.id) }, { status: 201 });
   } catch (err) {
     console.log("UNEXPECTED ERROR (batches POST):", err);
     return NextResponse.json({ error: "UNEXPECTED" }, { status: 422 });

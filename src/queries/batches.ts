@@ -60,7 +60,7 @@ export function useCreateBatch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ startDate, endDate }: { startDate: string; endDate: string }) =>
-      apiFetch("/api/batches", { method: "POST", body: { startDate, endDate } }),
+      apiFetch<BatchListItem>("/api/batches", { method: "POST", body: { startDate, endDate } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["batches"] });
       qc.invalidateQueries({ queryKey: ["batch-summaries"] });

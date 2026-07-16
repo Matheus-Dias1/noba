@@ -128,16 +128,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (processings && processings.length > 0) {
-      await db.insert(productProcessings).values(
+    const createdProcessings = processings && processings.length > 0
+      ? await db.insert(productProcessings).values(
         processings.map((p) => ({
           productId: created.id,
           name: p.name.toUpperCase(),
         })),
-      );
-    }
+      ).returning({ id: productProcessings.id, name: productProcessings.name })
+      : [];
 
-    return NextResponse.json({ id: String(created.id) }, { status: 201 });
+    return NextResponse.json({
+      id: String(created.id),
+      description,
+      defaultMeasurementUnit,
+      conversions,
+      processings: createdProcessings.map((processing) => ({ ...processing, id: String(processing.id) })),
+      archived: false,
+    }, { status: 201 });
   } catch (err) {
     console.log("UNEXPECTED ERROR (products POST):", err);
     return NextResponse.json({ error: "UNEXPECTED" }, { status: 422 });

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useCreateBatch } from "@/queries/batches";
 import { forceDateDay, padBatchNumber } from "@/lib/format";
 import { toast } from "sonner";
+import type { BatchListItem } from "@/queries/batches";
 
 /**
  * New Batch dialog — ported from the original `pages/Batches/NewBatch`.
@@ -35,8 +36,8 @@ export function NewBatchDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  nextNumber: number;
-  onCreated?: () => void;
+  nextNumber?: number;
+  onCreated?: (batch: BatchListItem) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,10 +45,10 @@ export function NewBatchDialog({
         {open && (
           <NewBatchForm
             nextNumber={nextNumber}
-            onDone={(success) => {
-              if (success) {
+            onDone={(batch) => {
+              if (batch) {
                 onOpenChange(false);
-                onCreated?.();
+                onCreated?.(batch);
               }
             }}
           />
@@ -61,8 +62,8 @@ function NewBatchForm({
   nextNumber,
   onDone,
 }: {
-  nextNumber: number;
-  onDone: (success: boolean) => void;
+  nextNumber?: number;
+  onDone: (batch: BatchListItem | null) => void;
 }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -73,9 +74,9 @@ function NewBatchForm({
     const start = forceDateDay(startDate).toISOString();
     const end = forceDateDay(endDate).toISOString();
     try {
-      await create.mutateAsync({ startDate: start, endDate: end });
+      const batch = await create.mutateAsync({ startDate: start, endDate: end });
       toast.success("Lote criado");
-      onDone(true);
+      onDone(batch);
     } catch (err) {
       toast.error(`Erro ao criar lote: ${err instanceof Error ? err.message : err}`);
     }
@@ -86,7 +87,7 @@ function NewBatchForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Lote {padBatchNumber(nextNumber)}</DialogTitle>
+        <DialogTitle>{nextNumber ? `Lote ${padBatchNumber(nextNumber)}` : "Novo lote"}</DialogTitle>
         <DialogDescription>Defina o período do novo lote.</DialogDescription>
       </DialogHeader>
 
@@ -112,7 +113,7 @@ function NewBatchForm({
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={() => onDone(false)} disabled={create.isPending}>
+        <Button variant="outline" onClick={() => onDone(null)} disabled={create.isPending}>
           Cancelar
         </Button>
         <Button onClick={handleAdd} disabled={!valid || create.isPending}>
