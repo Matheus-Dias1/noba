@@ -148,19 +148,17 @@
 }
 
 @keyframes order-row-merge-out {
-  0% { opacity: 1; background-color: transparent; }
-  35% { opacity: 1; background-color: color-mix(in oklab, var(--chart-1) 22%, transparent); }
-  70% { opacity: 1; background-color: color-mix(in oklab, var(--chart-1) 16%, transparent); }
+  0% { opacity: 1; background-color: color-mix(in oklab, var(--chart-1) 22%, transparent); }
   100% { opacity: 0; background-color: color-mix(in oklab, var(--chart-1) 12%, transparent); }
 }
 
 @keyframes order-row-cell-collapse {
-  0%, 55% { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  0% { padding-top: 0.5rem; padding-bottom: 0.5rem; }
   100% { padding-top: 0; padding-bottom: 0; }
 }
 
 @keyframes order-row-content-collapse {
-  0%, 55% { max-height: 4rem; transform: scaleY(1); }
+  0% { max-height: 2.5rem; transform: scaleY(1); }
   100% { max-height: 0; transform: scaleY(0); }
 }
 
@@ -174,26 +172,30 @@
   40% { transform: scale(1.22); }
 }
 
+.order-row-merge-highlight {
+  background-color: color-mix(in oklab, var(--chart-1) 22%, transparent);
+}
+
 .order-row-merge-out {
-  animation: order-row-merge-out 900ms ease-in-out forwards;
+  animation: order-row-merge-out 300ms ease-in forwards;
 }
 
 .order-row-merge-out > td {
-  animation: order-row-cell-collapse 900ms ease-in-out forwards;
+  animation: order-row-cell-collapse 300ms ease-in forwards;
 }
 
 .order-row-merge-out .order-merge-cell {
-  animation: order-row-content-collapse 900ms ease-in-out forwards;
+  animation: order-row-content-collapse 300ms ease-in forwards;
   overflow: hidden;
   transform-origin: top;
 }
 
 .order-row-merge-target {
-  animation: order-row-merge-target 1800ms ease-out;
+  animation: order-row-merge-target 1000ms ease-out;
 }
 
 .order-quantity-merge {
-  animation: order-quantity-merge 1800ms ease-out;
+  animation: order-quantity-merge 1000ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

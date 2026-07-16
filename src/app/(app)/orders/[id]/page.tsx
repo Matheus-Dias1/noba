@@ -57,7 +57,7 @@ interface Row {
 interface MergeFeedback {
   sourceKey: string;
   targetKey: string;
-  phase: "source" | "target";
+  phase: "source-highlight" | "source-collapse" | "target";
 }
 
 type Option = AsyncComboboxOption<string>;
@@ -239,37 +239,46 @@ function OrderForm({
       setMergeFeedback({
         sourceKey: key,
         targetKey: duplicate.key,
-        phase: "source",
+        phase: "source-highlight",
       });
       mergeTimers.current.push(
         window.setTimeout(() => {
-          setRows((prev) => {
-            const source = prev.find((candidate) => candidate.key === key);
-            const target = prev.find(
-              (candidate) => candidate.key === duplicate.key,
-            );
-            if (!source || !target) return prev;
-
-            const amount = parseFloat(
-              (parseFloat(target.amount) + parseFloat(source.amount)).toFixed(2),
-            );
-            return prev
-              .filter((candidate) => candidate.key !== key)
-              .map((candidate) =>
-                candidate.key === duplicate.key
-                  ? { ...candidate, amount: String(amount), editing: false }
-                  : candidate,
-              );
-          });
           setMergeFeedback({
             sourceKey: key,
             targetKey: duplicate.key,
-            phase: "target",
+            phase: "source-collapse",
           });
           mergeTimers.current.push(
-            window.setTimeout(() => setMergeFeedback(null), 1800),
+            window.setTimeout(() => {
+              setRows((prev) => {
+                const source = prev.find((candidate) => candidate.key === key);
+                const target = prev.find(
+                  (candidate) => candidate.key === duplicate.key,
+                );
+                if (!source || !target) return prev;
+
+                const amount = parseFloat(
+                  (parseFloat(target.amount) + parseFloat(source.amount)).toFixed(2),
+                );
+                return prev
+                  .filter((candidate) => candidate.key !== key)
+                  .map((candidate) =>
+                    candidate.key === duplicate.key
+                      ? { ...candidate, amount: String(amount), editing: false }
+                      : candidate,
+                  );
+              });
+              setMergeFeedback({
+                sourceKey: key,
+                targetKey: duplicate.key,
+                phase: "target",
+              });
+              mergeTimers.current.push(
+                window.setTimeout(() => setMergeFeedback(null), 1000),
+              );
+            }, 300),
           );
-        }, 900),
+        }, 1000),
       );
       return;
     }
@@ -502,9 +511,12 @@ function OrderForm({
                     onCancel={() => cancelRow(row.key)}
                     onRemove={() => removeRow(row.key)}
                     onAddProduct={() => setProductDialogRow(row.key)}
-                    isMerging={
-                      mergeFeedback?.phase === "source" &&
-                      mergeFeedback.sourceKey === row.key
+                    mergePhase={
+                      mergeFeedback?.sourceKey === row.key &&
+                      (mergeFeedback.phase === "source-highlight" ||
+                        mergeFeedback.phase === "source-collapse")
+                        ? mergeFeedback.phase
+                        : null
                     }
                   />
                 ) : (
@@ -594,7 +606,7 @@ function EditingRow({
   onCancel,
   onRemove,
   onAddProduct,
-  isMerging,
+  mergePhase,
 }: {
   row: Row;
   onChange: (patch: Partial<Row>) => void;
@@ -602,7 +614,7 @@ function EditingRow({
   onCancel: () => void;
   onRemove: () => void;
   onAddProduct: () => void;
-  isMerging: boolean;
+  mergePhase: "source-highlight" | "source-collapse" | null;
 }) {
   const unitOptions: Option[] = row.product
     ? productUnits(row.product).map((unit) => ({ value: unit, label: unit }))
@@ -614,7 +626,15 @@ function EditingRow({
     : null;
 
   return (
-    <TableRow className={isMerging ? "order-row-merge-out" : undefined}>
+    <TableRow
+      className={
+        mergePhase === "source-highlight"
+          ? "order-row-merge-highlight"
+          : mergePhase === "source-collapse"
+            ? "order-row-merge-out"
+            : undefined
+      }
+    >
       <TableCell>
         <div className="order-merge-cell grid grid-cols-3 gap-2">
           <div className={hasProcessings ? "col-span-2" : "col-span-3"}>
@@ -686,7 +706,7 @@ function EditingRow({
       </TableCell>
       <TableCell>
         <div className="order-merge-cell flex items-center justify-center gap-1">
-          {isMerging ? (
+          {mergePhase ? (
             <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
               Somando…
             </span>
