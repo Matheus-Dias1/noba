@@ -214,32 +214,35 @@ function OrderForm({
       toast.error("Preencha produto, quantidade e unidade.");
       return;
     }
-    const duplicate = rows.find(
-      (candidate) =>
-        candidate.key !== key &&
-        !candidate.editing &&
-        candidate.product?.value === row.product?.value &&
-        candidate.unit === row.unit &&
-        candidate.processingId === row.processingId,
-    );
+    setRows((prev) => {
+      const savedRow = prev.find((candidate) => candidate.key === key);
+      if (!savedRow?.product) return prev;
 
-    if (duplicate) {
+      const duplicate = prev.find(
+        (candidate) =>
+          candidate.key !== key &&
+          candidate.product?.value === savedRow.product?.value &&
+          candidate.unit === savedRow.unit &&
+          candidate.processingId === savedRow.processingId,
+      );
+
+      if (!duplicate) {
+        return prev.map((candidate) =>
+          candidate.key === key ? { ...candidate, editing: false } : candidate,
+        );
+      }
+
       const amount = parseFloat(
-        (parseFloat(duplicate.amount) + parseFloat(row.amount)).toFixed(2),
+        (parseFloat(duplicate.amount) + parseFloat(savedRow.amount)).toFixed(2),
       );
-      setRows((prev) =>
-        prev
-          .filter((candidate) => candidate.key !== key)
-          .map((candidate) =>
-            candidate.key === duplicate.key
-              ? { ...candidate, amount: String(amount) }
-              : candidate,
-          ),
-      );
-      return;
-    }
-
-    updateRow(key, { editing: false });
+      return prev
+        .filter((candidate) => candidate.key !== key)
+        .map((candidate) =>
+          candidate.key === duplicate.key
+            ? { ...candidate, amount: String(amount), editing: false }
+            : candidate,
+        );
+    });
   };
 
   // an "add" row that gets cancelled is just removed
