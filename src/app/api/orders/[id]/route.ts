@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, orderItems } from "@/db/schema/orders";
 import { batches } from "@/db/schema/batches";
 import { products } from "@/db/schema/products";
-import { productConversions } from "@/db/schema/products";
+import { productConversions, productProcessings } from "@/db/schema/products";
 import { clientUnits } from "@/db/schema/client-units";
 import { clients } from "@/db/schema/clients";
 import { requireSession } from "@/lib/auth";
@@ -64,7 +64,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .where(eq(orderItems.orderId, numId));
 
     // collapse conversions into the product
-    const prodMap = new Map<number, { id: number; description: string; defaultMeasurementUnit: string; conversions: { measurementUnit: string; oneDefaultEquals: number }[] }>();
+    const prodMap = new Map<number, { id: number; description: string; defaultMeasurementUnit: string; conversions: { measurementUnit: string; oneDefaultEquals: number }[]; processings: { id: number; name: string }[] }>();
     const lineOrder: { amount: number; measurementUnit: string; processingId: number | null; product: number }[] = [];
     for (const r of itemRows) {
       if (!prodMap.has(r.productId)) {
@@ -73,6 +73,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           description: r.productDescription,
           defaultMeasurementUnit: r.productDefaultUnit,
           conversions: [],
+          processings: [],
         });
         lineOrder.push({ amount: Number(r.amount), measurementUnit: r.unit, processingId: r.processingId, product: r.productId });
       }
@@ -81,6 +82,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           measurementUnit: r.convUnit,
           oneDefaultEquals: Number(r.convFactor),
         });
+      }
+    }
+
+    const productIds = [...prodMap.keys()];
+    if (productIds.length > 0) {
+      const processingRows = await db
+        .select()
+        .from(productProcessings)
+        .where(inArray(productProcessings.productId, productIds));
+      for (const processing of processingRows) {
+        prodMap.get(processing.productId)?.processings.push({ id: processing.id, name: processing.name });
       }
     }
 

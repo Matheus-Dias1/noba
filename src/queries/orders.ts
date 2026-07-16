@@ -21,6 +21,7 @@ export interface DetailItemProduct {
   description: string;
   defaultMeasurementUnit: string;
   conversions: Conversion[];
+  processings: { id: number; name: string }[];
 }
 
 /** Order line in the list. */

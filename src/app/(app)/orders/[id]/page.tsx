@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -165,7 +166,7 @@ function OrderForm({
             label: it.item.description,
             defaultMeasurementUnit: it.item.defaultMeasurementUnit,
             conversions: it.item.conversions,
-            processings: [],
+            processings: it.item.processings,
           },
           amount: `${it.amount}`,
           unit: it.measurementUnit,
@@ -379,9 +380,6 @@ function OrderForm({
               <TableHead className="h-10 w-28 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Unidade
               </TableHead>
-              <TableHead className="h-10 w-36 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Processamento
-              </TableHead>
               <TableHead className="h-10 w-28 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Ações
               </TableHead>
@@ -391,7 +389,7 @@ function OrderForm({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={4}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   Nenhum item. Clique em “Adicionar item”.
@@ -441,15 +439,17 @@ function ReadRow({
     : null;
   return (
     <TableRow>
-      <TableCell className="font-medium">{row.product?.label}</TableCell>
+      <TableCell className="font-medium">
+        <div className="flex items-center gap-2">
+          <span>{row.product?.label}</span>
+          {processingName && <Badge variant="secondary" className="font-normal">{processingName}</Badge>}
+        </div>
+      </TableCell>
       <TableCell className="text-center tabular-nums text-muted-foreground">
         {parseFloat(row.amount).toLocaleString("pt-BR")}
       </TableCell>
       <TableCell className="text-center text-muted-foreground">
         {row.unit}
-      </TableCell>
-      <TableCell className="text-center text-muted-foreground">
-        {processingName ?? "—"}
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-center gap-1">
@@ -510,7 +510,8 @@ function EditingRow({
   return (
     <TableRow>
       <TableCell>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
           <AsyncCombobox
             loadOptions={loadProductOptions}
             value={row.product}
@@ -526,6 +527,19 @@ function EditingRow({
             className="min-w-0"
           />
           <Button type="button" size="icon" variant="outline" onClick={onAddProduct} aria-label="Adicionar produto"><Plus className="size-4" /></Button>
+          </div>
+          {hasProcessings && (
+            <Select
+              value={row.processingId ? String(row.processingId) : "none"}
+              onValueChange={(value) => onChange({ processingId: value === "none" ? null : Number(value) })}
+            >
+              <SelectTrigger><SelectValue placeholder="Processamento" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum processamento</SelectItem>
+                {row.product!.processings.map((processing) => <SelectItem key={processing.id} value={String(processing.id)}>{processing.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </TableCell>
       <TableCell>
@@ -555,30 +569,6 @@ function EditingRow({
             ))}
           </SelectContent>
         </Select>
-      </TableCell>
-      <TableCell>
-        {hasProcessings ? (
-          <Select
-            value={row.processingId ? String(row.processingId) : "none"}
-            onValueChange={(v) =>
-              onChange({ processingId: v === "none" ? null : Number(v) })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Nenhum" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Nenhum</SelectItem>
-              {row.product!.processings.map((p) => (
-                <SelectItem key={p.id} value={String(p.id)}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <span className="text-center text-muted-foreground">—</span>
-        )}
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-center gap-1">
