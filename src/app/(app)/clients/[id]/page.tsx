@@ -35,7 +35,7 @@ import type { OrderListItem } from "@/queries/orders";
 import { PagePagination } from "@/components/shared/page-pagination";
 
 const CHART_COLORS = [
-  "#001219",
+  "#003049",
   "#005f73",
   "#0a9396",
   "#94d2bd",
