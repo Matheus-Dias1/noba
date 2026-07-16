@@ -172,20 +172,22 @@
   40% { transform: scale(1.22); }
 }
 
-.order-row-merge-highlight {
+.order-row-merge-highlight,
+.order-row-merge-highlight > td,
+.order-row-merge-out > td {
   background-color: color-mix(in oklab, var(--chart-1) 22%, transparent);
 }
 
 .order-row-merge-out {
-  animation: order-row-merge-out 300ms ease-in forwards;
+  animation: order-row-merge-out 900ms ease-in forwards;
 }
 
 .order-row-merge-out > td {
-  animation: order-row-cell-collapse 300ms ease-in forwards;
+  animation: order-row-cell-collapse 900ms ease-in forwards;
 }
 
 .order-row-merge-out .order-merge-cell {
-  animation: order-row-content-collapse 300ms ease-in forwards;
+  animation: order-row-content-collapse 900ms ease-in forwards;
   overflow: hidden;
   transform-origin: top;
 }

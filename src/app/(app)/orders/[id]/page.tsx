@@ -276,7 +276,7 @@ function OrderForm({
               mergeTimers.current.push(
                 window.setTimeout(() => setMergeFeedback(null), 1000),
               );
-            }, 300),
+            }, 900),
           );
         }, 1000),
       );
