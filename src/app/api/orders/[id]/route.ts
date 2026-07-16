@@ -99,6 +99,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({
       id: orderRow.id,
       client: orderRow.clientSnapshot ?? (orderRow.clientName ? `${orderRow.clientName}${orderRow.clientUnitName ? " - " + orderRow.clientUnitName : ""}` : ""),
+      clientName: orderRow.clientName,
+      unitName: orderRow.clientUnitName,
       observation: orderRow.observation,
       createdAt: orderRow.createdAt,
       deliverAt: orderRow.deliverAt,
