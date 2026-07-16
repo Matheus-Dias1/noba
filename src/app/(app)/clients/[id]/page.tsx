@@ -67,10 +67,6 @@ function shuffledChartColors(seed: string) {
   return palette;
 }
 
-function chartColor(name: string, palette: string[]) {
-  return palette[colorHash(name) % palette.length];
-}
-
 const MONTHS_PT = [
   "Janeiro",
   "Fevereiro",
@@ -354,10 +350,10 @@ function StatsTab({ clientId }: { clientId: number }) {
                   innerRadius={35}
                   paddingAngle={2}
                 >
-                  {stats.ordersByUnit.map((unit) => (
+                  {stats.ordersByUnit.map((unit, index) => (
                     <Cell
                       key={unit.unitName}
-                      fill={chartColor(unit.unitName, chartPalettes.unitPie)}
+                      fill={chartPalettes.unitPie[index % chartPalettes.unitPie.length]}
                     />
                   ))}
                 </Pie>
@@ -369,7 +365,7 @@ function StatsTab({ clientId }: { clientId: number }) {
             </ResponsiveContainer>
             {/* legend below pie */}
             <div className="mt-2 flex flex-col gap-1">
-              {stats.ordersByUnit.map((u) => (
+              {stats.ordersByUnit.map((u, index) => (
                 <div
                   key={u.unitName}
                   className="flex items-center gap-2 text-xs"
@@ -377,7 +373,7 @@ function StatsTab({ clientId }: { clientId: number }) {
                   <span
                     className="size-2.5 shrink-0 rounded-full"
                     style={{
-                      background: chartColor(u.unitName, chartPalettes.unitPie),
+                      background: chartPalettes.unitPie[index % chartPalettes.unitPie.length],
                     }}
                   />
                   <span className="min-w-0 flex-1 truncate text-foreground">
@@ -459,7 +455,7 @@ function StatsTab({ clientId }: { clientId: number }) {
                     key={name}
                     dataKey={name}
                     stackId="units"
-                    fill={chartColor(name, chartPalettes.monthUnits)}
+                    fill={chartPalettes.monthUnits[i % chartPalettes.monthUnits.length]}
                     radius={
                       i === unitNames.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]
                     }
@@ -503,8 +499,8 @@ function StatsTab({ clientId }: { clientId: number }) {
                 contentStyle={TOOLTIP_STYLE}
               />
               <Bar dataKey="totalItems" radius={[0, 4, 4, 0]}>
-                {stats.topProducts.map((product) => (
-                  <Cell key={product.name} fill={chartColor(product.name, chartPalettes.products)} />
+                {stats.topProducts.map((product, index) => (
+                  <Cell key={product.name} fill={chartPalettes.products[index % chartPalettes.products.length]} />
                 ))}
               </Bar>
             </BarChart>
