@@ -203,3 +203,39 @@ export async function loadClientUnitOptions(
   }
   return { options, hasMore: false };
 }
+
+/** Searchable client options for dependent client/unit pickers. */
+export async function loadClientOptions(
+  search: string,
+): Promise<LoadResult<string>> {
+  const clients = await apiFetch<Client[]>(
+    `/api/clients${search ? `?search=${encodeURIComponent(search)}` : ""}`,
+  );
+  return {
+    options: clients.map((client) => ({
+      value: String(client.id),
+      label: client.name,
+    })),
+    hasMore: false,
+  };
+}
+
+/** Unit options scoped to one selected client. */
+export async function loadUnitOptions(
+  clientId: number,
+  search: string,
+): Promise<LoadResult<string>> {
+  const client = await apiFetch<Client>(`/api/clients/${clientId}`);
+  const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
+  return {
+    options: client.units
+      .filter((unit) => !unit.archived)
+      .filter((unit) =>
+        normalizedSearch
+          ? unit.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch)
+          : true,
+      )
+      .map((unit) => ({ value: String(unit.id), label: unit.name })),
+    hasMore: false,
+  };
+}

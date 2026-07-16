@@ -34,6 +34,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         batchStart: batches.startDate,
         batchEnd: batches.endDate,
         clientUnitId: clientUnits.id,
+        clientId: clients.id,
         clientUnitName: clientUnits.name,
         clientName: clients.name,
       })
@@ -98,6 +99,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         endDate: orderRow.batchEnd,
       },
       clientUnitId: orderRow.clientUnitId,
+      clientId: orderRow.clientId,
       items: lineOrder.map((l) => ({
         amount: l.amount,
         measurementUnit: l.measurementUnit,

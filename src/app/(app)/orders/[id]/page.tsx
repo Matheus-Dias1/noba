@@ -33,7 +33,7 @@ import {
   batchLabel,
   type ProductPickerOption,
 } from "@/queries/batches";
-import { loadClientUnitOptions } from "@/queries/clients";
+import { loadClientOptions, loadUnitOptions } from "@/queries/clients";
 import { useOrder, useSaveOrder } from "@/queries/orders";
 import type { OrderDetail } from "@/queries/orders";
 import { forceDateDay } from "@/lib/format";
@@ -124,9 +124,14 @@ function OrderForm({
   }) => Promise<void>;
 }) {
   // top-row fields
+  const [client, setClient] = useState<Option | null>(
+    order?.clientId && order.clientName
+      ? { value: String(order.clientId), label: order.clientName }
+      : null,
+  );
   const [clientUnit, setClientUnit] = useState<Option | null>(
-    order?.clientUnitId
-      ? { value: String(order.clientUnitId), label: order.client }
+    order?.clientUnitId && order.unitName
+      ? { value: String(order.clientUnitId), label: order.unitName }
       : null,
   );
   const [observation, setObservation] = useState(order?.observation ?? "");
@@ -200,8 +205,8 @@ function OrderForm({
   };
 
   const handleConfirm = async () => {
-    if (!clientUnit || !batch || !deliverAt) {
-      toast.error("Preencha cliente, lote e data de entrega.");
+    if (!client || !clientUnit || !batch || !deliverAt) {
+      toast.error("Preencha cliente, unidade, lote e data de entrega.");
       return;
     }
     const editing = rows.filter((r) => r.editing);
@@ -238,7 +243,7 @@ function OrderForm({
     const deliverDate = forceDateDay(deliverAt);
     await onSubmit({
       clientUnitId: clientUnit.value ? Number(clientUnit.value) : null,
-      client: clientUnit.label,
+      client: client.label,
       observation: observation.trim(),
       batch: batch.value,
       deliverAt: deliverDate.toISOString(),
@@ -259,15 +264,34 @@ function OrderForm({
       </h1>
 
       {/* top row: client / batch / deliver date */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <div className="space-y-1.5">
           <Label>Cliente</Label>
           <AsyncCombobox
-            loadOptions={loadClientUnitOptions}
-            value={clientUnit}
-            onChange={(opt) => setClientUnit(opt as Option | null)}
+            loadOptions={loadClientOptions}
+            value={client}
+            onChange={(opt) => {
+              const nextClient = opt as Option | null;
+              if (nextClient?.value !== client?.value) setClientUnit(null);
+              setClient(nextClient);
+            }}
             placeholder="Selecionar cliente"
             emptyText="Nenhum cliente"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Unidade</Label>
+          <AsyncCombobox
+            loadOptions={(search) =>
+              client
+                ? loadUnitOptions(Number(client.value), search)
+                : Promise.resolve({ options: [], hasMore: false })
+            }
+            value={clientUnit}
+            onChange={(opt) => setClientUnit(opt as Option | null)}
+            placeholder={client ? "Selecionar unidade" : "Selecione o cliente"}
+            emptyText="Nenhuma unidade"
+            disabled={!client}
           />
         </div>
         <div className="space-y-1.5">

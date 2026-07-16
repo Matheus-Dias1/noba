@@ -114,6 +114,7 @@ export async function GET(req: NextRequest) {
       status: r.status,
       batch: { id: r.batchId, number: r.batchNumber },
       clientUnitId: r.clientUnitId,
+      clientId: null,
       items: (itemsByOrder.get(r.id) ?? []).map((it) => ({
         amount: Number(it.amount),
         measurementUnit: it.unit,

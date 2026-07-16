@@ -49,6 +49,7 @@ export interface OrderListItem {
   deliverAt: string;
   status: "active" | "cancelled";
   clientUnitId: number | null;
+  clientId: number | null;
   items: ListOrderItem[];
   batch: { id: string; number: number };
 }
@@ -118,6 +119,7 @@ export function useOrder(id: string | undefined) {
 }
 
 export interface OrderInput {
+  clientUnitId: number | null;
   client: string;
   batch: string;
   deliverAt: string;
