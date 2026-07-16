@@ -38,7 +38,6 @@ import { loadClientOptions, loadUnitOptions } from "@/queries/clients";
 import { useOrder, useSaveOrder } from "@/queries/orders";
 import type { OrderDetail } from "@/queries/orders";
 import { forceDateDay } from "@/lib/format";
-import type { Conversion } from "@/types";
 import { NewBatchDialog } from "@/components/batches/new-batch-dialog";
 import { NewProductDialog } from "@/components/products/new-product-dialog";
 import { ClientDialog } from "@/components/clients/client-dialog";
@@ -59,6 +58,13 @@ type Option = AsyncComboboxOption<string>;
 
 let rowKeySeq = 0;
 const newRowKey = () => `row-${Date.now()}-${rowKeySeq++}`;
+
+const productUnits = (product: ProductPickerOption) => [
+  ...new Set([
+    product.defaultMeasurementUnit,
+    ...product.conversions.map((conversion) => conversion.measurementUnit),
+  ]),
+];
 
 /**
  * Order editor (new + edit) — ported from the original `pages/Orders/Order`.
@@ -208,6 +214,31 @@ function OrderForm({
       toast.error("Preencha produto, quantidade e unidade.");
       return;
     }
+    const duplicate = rows.find(
+      (candidate) =>
+        candidate.key !== key &&
+        !candidate.editing &&
+        candidate.product?.value === row.product?.value &&
+        candidate.unit === row.unit &&
+        candidate.processingId === row.processingId,
+    );
+
+    if (duplicate) {
+      const amount = parseFloat(
+        (parseFloat(duplicate.amount) + parseFloat(row.amount)).toFixed(2),
+      );
+      setRows((prev) =>
+        prev
+          .filter((candidate) => candidate.key !== key)
+          .map((candidate) =>
+            candidate.key === duplicate.key
+              ? { ...candidate, amount: String(amount) }
+              : candidate,
+          ),
+      );
+      return;
+    }
+
     updateRow(key, { editing: false });
   };
 
@@ -287,15 +318,20 @@ function OrderForm({
         onOpenChange={(open) => !open && setProductDialogRow(null)}
         onCreated={(product) => {
           if (!productDialogRow) return;
+          const productOption: ProductPickerOption = {
+            value: product.id,
+            label: product.description,
+            defaultMeasurementUnit: product.defaultMeasurementUnit,
+            conversions: product.conversions,
+            processings: product.processings.map((item) => ({
+              id: Number(item.id),
+              name: item.name,
+            })),
+          };
+          const units = productUnits(productOption);
           updateRow(productDialogRow, {
-            product: {
-              value: product.id,
-              label: product.description,
-              defaultMeasurementUnit: product.defaultMeasurementUnit,
-              conversions: product.conversions,
-              processings: product.processings.map((item) => ({ id: Number(item.id), name: item.name })),
-            },
-            unit: product.defaultMeasurementUnit,
+            product: productOption,
+            unit: units.length === 1 ? units[0] : "",
             processingId: null,
           });
           setProductDialogRow(null);
@@ -512,16 +548,7 @@ function EditingRow({
   onAddProduct: () => void;
 }) {
   const unitOptions: Option[] = row.product
-    ? [
-        {
-          value: row.product.defaultMeasurementUnit,
-          label: row.product.defaultMeasurementUnit,
-        },
-        ...row.product.conversions.map((c: Conversion) => ({
-          value: c.measurementUnit,
-          label: c.measurementUnit,
-        })),
-      ]
+    ? productUnits(row.product).map((unit) => ({ value: unit, label: unit }))
     : [];
 
   const hasProcessings = (row.product?.processings?.length ?? 0) > 0;
@@ -537,13 +564,15 @@ function EditingRow({
             <AsyncCombobox
               loadOptions={loadProductOptions}
               value={row.product}
-              onChange={(opt) =>
+              onChange={(opt) => {
+                const product = opt as ProductPickerOption | null;
+                const units = product ? productUnits(product) : [];
                 onChange({
-                  product: opt as ProductPickerOption | null,
-                  unit: "",
+                  product,
+                  unit: units.length === 1 ? units[0] : "",
                   processingId: null,
-                })
-              }
+                });
+              }}
               placeholder="Produto"
               emptyText="Nenhum produto"
               onAdd={onAddProduct}
