@@ -216,15 +216,13 @@ export default function OrdersPage() {
             emptyText="Nenhum pedido encontrado."
             onRowClick={(o) => (window.location.href = `/orders/${o.id}`)}
             containerClassName="h-full overflow-auto"
+            loading={isFetching}
           />
         )}
       </div>
 
       <div className="shrink-0">
         <PagePagination page={page} totalCount={data?.totalCount ?? 0} pageSize={30} onPageChange={setPage} />
-        {isFetching && orders.length > 0 && (
-          <p className="mt-2 text-sm text-muted-foreground">Carregando...</p>
-        )}
       </div>
     </div>
   );

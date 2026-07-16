@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Shared, consistently-styled table used by the Products and Orders list pages.
@@ -28,6 +29,7 @@ export function DataTable<T>({
   emptyText = "Nenhum resultado.",
   onRowClick,
   containerClassName,
+  loading = false,
 }: {
   columns: DataTableColumn<T>[];
   rows: T[];
@@ -35,20 +37,21 @@ export function DataTable<T>({
   emptyText?: string;
   onRowClick?: (row: T) => void;
   containerClassName?: string;
+  loading?: boolean;
 }) {
-  if (rows.length === 0) {
+  if (!loading && rows.length === 0) {
     return <p className="px-1 py-6 text-sm text-muted-foreground">{emptyText}</p>;
   }
 
   return (
     <div className={cn("overflow-x-auto rounded-lg border", containerClassName)}>
-      <Table>
-        <TableHeader className="sticky top-0 z-10">
+      <Table containerClassName="overflow-visible">
+        <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
             {columns.map((col) => (
               <TableHead
                 key={col.header}
-                className={`h-10 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-muted-foreground ${col.className ?? ""}`}
+                className={`sticky top-0 z-10 h-10 bg-muted whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-muted-foreground ${col.className ?? ""}`}
               >
                 {col.header}
               </TableHead>
@@ -56,7 +59,15 @@ export function DataTable<T>({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row, i) => (
+          {loading ? Array.from({ length: 10 }, (_, rowIndex) => (
+            <TableRow key={`skeleton-${rowIndex}`}>
+              {columns.map((col, columnIndex) => (
+                <TableCell key={columnIndex} className={col.className}>
+                  <Skeleton className="h-5 w-full min-w-16" />
+                </TableCell>
+              ))}
+            </TableRow>
+          )) : rows.map((row, i) => (
             <TableRow
               key={rowKey(row, i)}
               className={onRowClick ? "cursor-pointer" : undefined}
